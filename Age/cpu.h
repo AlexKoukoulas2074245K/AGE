@@ -2,7 +2,7 @@
 #include "common.h"
 
 class Memory;
-class Cpu
+class Cpu final
 {
 public:
 	Cpu(Memory&);
@@ -13,6 +13,8 @@ public:
 	void printRegisters();
 
 	const word* getPC() const;
+	const clock_t* getT() const;
+
 	bool isFlagSet(const byte flag) const;
 	byte getFlag(const byte flag) const;
 
@@ -25,14 +27,15 @@ public:
 
 private:
 
-	enum ErrorState
+	void resetFlag(const byte flag);
+	void setFlag(const byte flag);
+
+private:
+	enum error_state
 	{
 		ES_OK,
 		ES_UNIMPLEMENTED_INSTRUCTION
 	};
-
-	void resetFlag(const byte flag);
-	void setFlag(const byte flag);
 
 	struct registers
 	{
@@ -42,11 +45,11 @@ private:
 	};
 
 private:
-
-	registers  _registers;
-	byte       _flags;
-	clock_t    _internalM, _internalT;
-	byte       _lastOpcode;
-	ErrorState _errorState;
-	Memory&	   _memory;
+	registers   _registers;
+	byte        _flags;
+	clock_t     _internalM, _internalT;
+	byte        _opcode;
+	byte        _isBitOpcode;
+	error_state _errorState;
+	Memory&	    _memory;
 };

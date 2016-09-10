@@ -2,11 +2,14 @@
 #include "common.h"
 
 #include <vector>
+#include <functional>
 
-class Memory
+class Display;
+class Memory final
 {
+
 public:
-	Memory();
+	Memory(Display&);
 
 	byte readByte(const word addr);
 	word readWord(const word addr);
@@ -32,4 +35,5 @@ private:
 	byte _zram[128];
 
 	const word* _pcref;
+	Display& _displayRef;
 };

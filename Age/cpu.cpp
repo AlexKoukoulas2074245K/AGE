@@ -5,6 +5,8 @@
 #include <unordered_map>
 #include <string>
 
+static const byte NO_OPCODE = 0xDD;
+
 static const std::unordered_map<byte, std::string> s_instrDisassembly = 
 {
 	{ 0x00, "NOP" },
@@ -12,10 +14,10 @@ static const std::unordered_map<byte, std::string> s_instrDisassembly =
 	// 8 bit Loads
 	{ 0x06, "LD B, n(8 bits)" },
 	{ 0x0E, "LD C, n(8 bits)" },
-	{ 0x06, "LD D, n(8 bits)" },
-	{ 0x0E, "LD E, n(8 bits)" },
-	{ 0x06, "LD H, n(8 bits)" },
-	{ 0x0E, "LD L, n(8 bits)" },
+	{ 0x16, "LD D, n(8 bits)" },
+	{ 0x1E, "LD E, n(8 bits)" },
+	{ 0x26, "LD H, n(8 bits)" },
+	{ 0x2E, "LD L, n(8 bits)" },
 	{ 0x7F, "LD A, A" },
 	{ 0x78, "LD A, B" },
 	{ 0x79, "LD A, C" },
@@ -23,6 +25,7 @@ static const std::unordered_map<byte, std::string> s_instrDisassembly =
 	{ 0x7B, "LD A, E" },
 	{ 0x7C, "LD A, H" },
 	{ 0x7D, "LD A, L" },
+	{ 0xF2, "LD A, (C)" },
 	{ 0x0A, "LD A, (BC)" },
 	{ 0x1A, "LD A, (DE)" },
 	{ 0x3E, "LD A, #" },
@@ -40,6 +43,7 @@ static const std::unordered_map<byte, std::string> s_instrDisassembly =
 	{ 0xF0, "LDH A, (n)"},
 	{ 0x22, "LDI (HL), A" },
 	{ 0xEA, "LD (nn), A" },
+	{ 0x36, "LD (HL), n" },
 
 	// 16 bit Loads
 	{ 0x08, "LD nn, sp" },
@@ -81,6 +85,7 @@ static const std::unordered_map<byte, std::string> s_instrDisassembly =
 	{ 0x83, "ADD A, E" },
 	{ 0x84, "ADD A, H" },
 	{ 0x85, "ADD A, L" },
+	{ 0x86, "ADD A, HL" },
 	
 	{ 0x97, "SUB A" },
 	{ 0x90, "SUB B" },
@@ -97,6 +102,7 @@ static const std::unordered_map<byte, std::string> s_instrDisassembly =
 	{ 0xBC, "CP A, H" },
 	{ 0xBD, "CP A, L" },
 	{ 0xFE, "CP A, #" },
+	{ 0xBE, "CP A, HL" },
 	{ 0xAF, "XOR A,A" },
 	{ 0x8F, "ADC A, A" },
 	{ 0x88, "ADC A, B" },
@@ -129,36 +135,41 @@ static const std::unordered_map<byte, std::string> s_instrDisassembly =
 
 	// Jumps
 	{ 0xC3, "JP nn(16 bits)" },
+	{ 0x18, "JR n" },
 	{ 0x20, "JR NZ,n" },
 	{ 0x28, "JR Z,n" },
 	{ 0x30, "JR NC,n" },
 	{ 0x38, "JR C,n" },
+
 
 	// Returns
 	{ 0xC9, "RET" },
 
 	{ 0xF3, "DI" },
 	{ 0xFF, "RST 0x38" },
+};
 
-	// CB
+static const std::unordered_map<byte, std::string> s_bitOpcodeDisassembly =
+{
 	{ 0x7C, "BIT 7H"},
-	{ 0x4F, "BIT 1A"},
-	{ 0x11, "RL C"}
+	{ 0x4F, "BIT 1A" },
+	{ 0x11, "RL C" }
 };
 
 Cpu::Cpu(Memory& memory)
 	: _memory(memory)
-	, _lastOpcode(0)
+	, _opcode(NO_OPCODE)
+	, _isBitOpcode(false)
 {
 	resetCpu();
 }
 
 void Cpu::emulateCycle()
 {
-	const byte opcode = _memory.readByte(_registers.pc++);
+	_opcode      = _memory.readByte(_registers.pc++);
+	_isBitOpcode = false;
 
-	
-	switch (opcode)
+	switch (_opcode)
 	{
 		
 		case 0x00: // NOP
@@ -244,6 +255,12 @@ void Cpu::emulateCycle()
 		{
 			_registers.A = _registers.L;
 			_registers.M = 1;
+			_registers.T = 4;
+		} break;
+		case 0xF2: // LD A, (C)
+		{
+			_registers.A = _memory.readByte(0xFF00 + _registers.C);
+			_registers.M = 2;
 			_registers.T = 4;
 		} break;
 		case 0x0A: // LD A, (BC)
@@ -349,6 +366,13 @@ void Cpu::emulateCycle()
 			_memory.writeByte(address, _registers.A);
 			_registers.M = 4;
 			_registers.T = 16;
+		} break;
+		case 0x36: // LD (HL), n
+		{
+			word nextByte = _memory.readByte(_registers.pc++);
+			_memory.writeByte((_registers.H << 8) + _registers.L, nextByte);
+			_registers.M = 3;
+			_registers.T = 12;
 		} break;
 
 		// 16 Bit Loads
@@ -597,6 +621,9 @@ void Cpu::emulateCycle()
 			_registers.A--;
 			if (_registers.A == 0) 
 				setFlag(FLAG_Z);
+			else
+				resetFlag(FLAG_Z);
+
 			setFlag(FLAG_N);
 
 			_registers.M = 1;
@@ -852,6 +879,27 @@ void Cpu::emulateCycle()
 			_registers.M = 1;
 			_registers.T = 4;
 		} break;
+		case 0x86: // ADD A, HL
+		{
+			byte val = _memory.readByte((_registers.H << 8) + _registers.L);
+			if (0xFF - _registers.A <= val)
+				setFlag(FLAG_C);
+			else
+				resetFlag(FLAG_C);
+
+			if (0x0F - (_registers.A & 0x0F) <= (val & 0x0F))
+				resetFlag(FLAG_N);
+
+			_registers.A += val;
+
+			if (_registers.A == 0x00)
+				setFlag(FLAG_Z);
+			else
+				resetFlag(FLAG_Z);
+
+			_registers.M = 2;
+			_registers.T = 8;
+		} break;
 		case 0x97: // SUB A
 		{
 			if ((_registers.A & 0x0F) >= (_registers.A & 0x0F))
@@ -1020,7 +1068,7 @@ void Cpu::emulateCycle()
 			else
 				resetFlag(FLAG_C);
 
-			if ((_registers.A & 0x0F) >= (_registers.A & 0x0F))
+			if ((_registers.A & 0x0F) > (_registers.A & 0x0F))
 				setFlag(FLAG_H);
 			else
 				resetFlag(FLAG_H);
@@ -1042,7 +1090,7 @@ void Cpu::emulateCycle()
 			else
 				resetFlag(FLAG_C);
 
-			if ((_registers.A & 0x0F) >= (_registers.B & 0x0F))
+			if ((_registers.A & 0x0F) > (_registers.B & 0x0F))
 				setFlag(FLAG_H);
 			else
 				resetFlag(FLAG_H);
@@ -1064,7 +1112,7 @@ void Cpu::emulateCycle()
 			else
 				resetFlag(FLAG_C);
 
-			if ((_registers.A & 0x0F) >= (_registers.C & 0x0F))
+			if ((_registers.A & 0x0F) > (_registers.C & 0x0F))
 				setFlag(FLAG_H);
 			else
 				resetFlag(FLAG_H);
@@ -1086,7 +1134,7 @@ void Cpu::emulateCycle()
 			else
 				resetFlag(FLAG_C);
 
-			if ((_registers.A & 0x0F) >= (_registers.D & 0x0F))
+			if ((_registers.A & 0x0F) > (_registers.D & 0x0F))
 				setFlag(FLAG_H);
 			else
 				resetFlag(FLAG_H);
@@ -1108,7 +1156,7 @@ void Cpu::emulateCycle()
 			else
 				resetFlag(FLAG_C);
 
-			if ((_registers.A & 0x0F) >= (_registers.E & 0x0F))
+			if ((_registers.A & 0x0F) > (_registers.E & 0x0F))
 				setFlag(FLAG_H);
 			else
 				resetFlag(FLAG_H);
@@ -1130,7 +1178,7 @@ void Cpu::emulateCycle()
 			else
 				resetFlag(FLAG_C);
 
-			if ((_registers.A & 0x0F) >= (_registers.H & 0x0F))
+			if ((_registers.A & 0x0F) > (_registers.H & 0x0F))
 				setFlag(FLAG_H);
 			else
 				resetFlag(FLAG_H);
@@ -1152,7 +1200,7 @@ void Cpu::emulateCycle()
 			else
 				resetFlag(FLAG_C);
 
-			if ((_registers.A & 0x0F) >= (_registers.L & 0x0F))
+			if ((_registers.A & 0x0F) > (_registers.L & 0x0F))
 				setFlag(FLAG_H);
 			else
 				resetFlag(FLAG_H);
@@ -1163,6 +1211,7 @@ void Cpu::emulateCycle()
 		case 0xFE: // CP A, #
 		{
 			byte val = _memory.readByte(_registers.pc++);
+
 			if (_registers.A - val == 0)
 				setFlag(FLAG_Z);
 			else 
@@ -1175,7 +1224,30 @@ void Cpu::emulateCycle()
 			else
 				resetFlag(FLAG_C);
 
-			if ((_registers.A & 0x0F) >= (val & 0x0F))
+			if ((_registers.A & 0x0F) > (val & 0x0F))
+				setFlag(FLAG_H);
+			else
+				resetFlag(FLAG_H);
+
+			_registers.M = 2;
+			_registers.T = 8;
+		} break;
+		case 0xBE: // CP A, HL
+		{
+			byte val = _memory.readByte((_registers.H << 8) + _registers.L);
+			if (_registers.A - val == 0)
+				setFlag(FLAG_Z);
+			else
+				resetFlag(FLAG_Z);
+
+			setFlag(FLAG_N);
+
+			if (_registers.A < val)
+				setFlag(FLAG_C);
+			else
+				resetFlag(FLAG_C);
+
+			if ((_registers.A & 0x0F) > (val & 0x0F))
 				setFlag(FLAG_H);
 			else
 				resetFlag(FLAG_H);
@@ -1550,6 +1622,16 @@ void Cpu::emulateCycle()
 			_registers.M = 3;
 			_registers.T = 12;
 		} break;
+		case 0x18: // JR n
+		{
+			signed char n = _memory.readByte(_registers.pc);
+			_registers.pc++;
+			_registers.M = 2;
+			_registers.T = 8;
+			_registers.pc += n;
+			_registers.M++;
+			_registers.T += 4;
+		} break;
 		case 0x20: // JR NZ,n
 		{
 			signed char nextByte = _memory.readByte(_registers.pc);
@@ -1616,7 +1698,7 @@ void Cpu::emulateCycle()
 		// Misc
 		case 0xF3: // DI
 		{
-			std::cout << "Unimplemented DI" << std::endl;
+			std::cout << std::hex << _registers.pc << " Unimplemented DI" << std::endl;
 			_registers.M = 1;
 			_registers.T = 4;
 		} break;
@@ -1634,9 +1716,9 @@ void Cpu::emulateCycle()
 		// CB
 		case 0xCB:
 		{
-			byte nextOpcode = _memory.readByte(_registers.pc++);
-
-			switch (nextOpcode)
+			_opcode      = _memory.readByte(_registers.pc++);
+			_isBitOpcode = true;
+			switch (_opcode)
 			{
 				case 0x7C: // BIT 7H
 				{
@@ -1694,7 +1776,7 @@ void Cpu::emulateCycle()
 
 				default:
 				{
-					std::cout << ">>> Unimplemented instruction: 0x" << std::hex << static_cast<int>(nextOpcode) << " <<<" << std::endl;
+					std::cout << ">>> Unimplemented instruction: 0x" << std::hex << static_cast<int>(_opcode) << " <<<" << std::endl;
 					_errorState = ES_UNIMPLEMENTED_INSTRUCTION;
 				} 
 			}
@@ -1702,14 +1784,13 @@ void Cpu::emulateCycle()
 
 		default:
 		{
-			std::cout << ">>> Unimplemented instruction: 0x" << std::hex << static_cast<int>(opcode) << " <<<"<< std::endl;		
+			std::cout << ">>> Unimplemented instruction: 0x" << std::hex << static_cast<int>(_opcode) << " <<<"<< std::endl;		
 			_errorState = ES_UNIMPLEMENTED_INSTRUCTION;
 		}
 	}
 
 	_internalM += _registers.M;
-	_internalT += _registers.T;
-	_lastOpcode = opcode;
+	_internalT += _registers.T;	
 }
 
 void Cpu::resetCpu()
@@ -1720,16 +1801,19 @@ void Cpu::resetCpu()
 	_internalT = 0;
 
 	_registers.pc = 0x0000;
+
+	_opcode      = NO_OPCODE;
+	_isBitOpcode = false;
 }
 
 void Cpu::printRegisters()
 {
 	//if (_errorState == ES_UNIMPLEMENTED_INSTRUCTION) return;
+	
+	auto opcodeDisassembly = _isBitOpcode ? s_bitOpcodeDisassembly.at(_opcode) : s_instrDisassembly.at(_opcode);
+	
+	std::cout << "---------- Registers for: " << opcodeDisassembly << " [0x" << std::hex << static_cast<int>(_opcode) << "] ----------" << std::endl;	
 
-	if (s_instrDisassembly.count(_lastOpcode) != 0)
-		std::cout << "---------- Registers for: " << s_instrDisassembly.at(_lastOpcode) << " [0x" << std::hex << static_cast<int>(_lastOpcode) << "] ----------" << std::endl;
-	else
-		std::cout << "---------- Registers for: 0x" << std::hex << static_cast<int>(_lastOpcode) << std::endl;
 
 	std::cout << "PC: 0x" << std::hex << _registers.pc << std::endl;
 	std::cout << "SP: 0x" << std::hex << _registers.sp << std::endl;
@@ -1749,6 +1833,8 @@ void Cpu::printRegisters()
 }
 
 const word* Cpu::getPC() const { return &_registers.pc; }
+const clock_t* Cpu::getT() const { return &_registers.T; }
+
 bool Cpu::isFlagSet(const byte flag) const { return (_flags & flag) != 0; }
 byte Cpu::getFlag(const byte flag) const { return (_flags & flag) != 0 ? 0x1 : 0x0; }
 
