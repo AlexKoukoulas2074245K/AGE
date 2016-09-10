@@ -42,6 +42,7 @@ static const std::unordered_map<byte, std::string> s_instrDisassembly =
 	{ 0xE2, "LD (C), A" },
 	{ 0xF0, "LDH A, (n)"},
 	{ 0x22, "LDI (HL), A" },
+	{ 0x2A, "LDI A, (HL)" },
 	{ 0xEA, "LD (nn), A" },
 	{ 0x36, "LD (HL), n" },
 
@@ -86,7 +87,15 @@ static const std::unordered_map<byte, std::string> s_instrDisassembly =
 	{ 0x84, "ADD A, H" },
 	{ 0x85, "ADD A, L" },
 	{ 0x86, "ADD A, HL" },
-	
+	{ 0xA7, "AND A, A" },
+	{ 0xA0, "AND A, B" },
+	{ 0xA1, "AND A, C" },
+	{ 0xA2, "AND A, D" },
+	{ 0xA3, "AND A, E" },
+	{ 0xA4, "AND A, H" },
+	{ 0xA5, "AND A, L" },
+	{ 0xA6, "AND A, (HL)" },
+	{ 0xE6, "AND A, #" },
 	{ 0x97, "SUB A" },
 	{ 0x90, "SUB B" },
 	{ 0x91, "SUB C" },
@@ -103,7 +112,20 @@ static const std::unordered_map<byte, std::string> s_instrDisassembly =
 	{ 0xBD, "CP A, L" },
 	{ 0xFE, "CP A, #" },
 	{ 0xBE, "CP A, HL" },
-	{ 0xAF, "XOR A,A" },
+	{ 0xB7, "OR A, A" },
+	{ 0xB0, "OR A, B" },
+	{ 0xB1, "OR A, C" },
+	{ 0xB2, "OR A, D" },
+	{ 0xB3, "OR A, E" },
+	{ 0xB4, "OR A, H" },
+	{ 0xB5, "OR A, L" },
+	{ 0xAF, "XOR A, A" },
+	{ 0xA8, "XOR A, B" },
+	{ 0xA9, "XOR A, C" },
+	{ 0xAA, "XOR A, D" },
+	{ 0xAB, "XOR A, E" },
+	{ 0xAC, "XOR A, H" },
+	{ 0xAD, "XOR A, L" },
 	{ 0x8F, "ADC A, A" },
 	{ 0x88, "ADC A, B" },
 	{ 0x89, "ADC A, C" },
@@ -145,15 +167,28 @@ static const std::unordered_map<byte, std::string> s_instrDisassembly =
 	// Returns
 	{ 0xC9, "RET" },
 
+	// Misc
 	{ 0xF3, "DI" },
+	{ 0xFB, "EI" },
 	{ 0xFF, "RST 0x38" },
+	{ 0x2F, "CPL" },
+	{ 0x3F, "SCF" }
 };
 
 static const std::unordered_map<byte, std::string> s_bitOpcodeDisassembly =
 {
 	{ 0x7C, "BIT 7H"},
 	{ 0x4F, "BIT 1A" },
-	{ 0x11, "RL C" }
+	{ 0x11, "RL C" },
+	
+	// Swap
+	{ 0x37, "SWAP A" },
+	{ 0x30, "SWAP B" },
+	{ 0x31, "SWAP C" },
+	{ 0x32, "SWAP D" },
+	{ 0x33, "SWAP E" },
+	{ 0x34, "SWAP H" },
+	{ 0x35, "SWAP L" }
 };
 
 Cpu::Cpu(Memory& memory)
@@ -359,6 +394,15 @@ void Cpu::emulateCycle()
 			_registers.M = 2;
 			_registers.T = 8;
 		} break;
+		case 0x2A: // LDI A, (HL)
+		{
+			_registers.A = _memory.readByte((_registers.H << 8) + _registers.L);
+			if (_registers.L == 0xFF)
+				_registers.H++;
+			_registers.L++;
+			_registers.M = 2;
+			_registers.T = 8;
+		} break;
 		case 0xEA: // LD (nn), A
 		{
 			word address = _memory.readWord(_registers.pc);
@@ -369,7 +413,7 @@ void Cpu::emulateCycle()
 		} break;
 		case 0x36: // LD (HL), n
 		{
-			word nextByte = _memory.readByte(_registers.pc++);
+			byte nextByte = _memory.readByte(_registers.pc++);
 			_memory.writeByte((_registers.H << 8) + _registers.L, nextByte);
 			_registers.M = 3;
 			_registers.T = 12;
@@ -900,6 +944,141 @@ void Cpu::emulateCycle()
 			_registers.M = 2;
 			_registers.T = 8;
 		} break;
+		case 0xA7: // AND A, A
+		{
+			_registers.A = _registers.A & _registers.A;
+
+			if (_registers.A == 0x00)
+				setFlag(FLAG_Z);
+			else
+				resetFlag(FLAG_Z);
+			resetFlag(FLAG_N);
+			setFlag(FLAG_H);
+			resetFlag(FLAG_C);
+
+			_registers.M = 1;
+			_registers.T = 4;
+		} break;
+		case 0xA0: // AND A, B
+		{
+			_registers.A = _registers.A & _registers.B;
+
+			if (_registers.A == 0x00)
+				setFlag(FLAG_Z);
+			else
+				resetFlag(FLAG_Z);
+			resetFlag(FLAG_N);
+			setFlag(FLAG_H);
+			resetFlag(FLAG_C);
+
+			_registers.M = 1;
+			_registers.T = 4;
+		} break;
+		case 0xA1: // AND A, C
+		{
+			_registers.A = _registers.A & _registers.C;
+
+			if (_registers.A == 0x00)
+				setFlag(FLAG_Z);
+			else
+				resetFlag(FLAG_Z);
+			resetFlag(FLAG_N);
+			setFlag(FLAG_H);
+			resetFlag(FLAG_C);
+
+			_registers.M = 1;
+			_registers.T = 4;
+		} break;
+		case 0xA2: // AND A, D
+		{
+			_registers.A = _registers.A & _registers.D;
+
+			if (_registers.A == 0x00)
+				setFlag(FLAG_Z);
+			else
+				resetFlag(FLAG_Z);
+			resetFlag(FLAG_N);
+			setFlag(FLAG_H);
+			resetFlag(FLAG_C);
+
+			_registers.M = 1;
+			_registers.T = 4;
+		} break;
+		case 0xA3: // AND A, E
+		{
+			_registers.A = _registers.A & _registers.E;
+
+			if (_registers.A == 0x00)
+				setFlag(FLAG_Z);
+			else
+				resetFlag(FLAG_Z);
+			resetFlag(FLAG_N);
+			setFlag(FLAG_H);
+			resetFlag(FLAG_C);
+
+			_registers.M = 1;
+			_registers.T = 4;
+		} break;
+		case 0xA4: // AND A, H
+		{
+			_registers.A = _registers.A & _registers.H;
+
+			if (_registers.A == 0x00)
+				setFlag(FLAG_Z);
+			else
+				resetFlag(FLAG_Z);
+			resetFlag(FLAG_N);
+			setFlag(FLAG_H);
+			resetFlag(FLAG_C);
+
+			_registers.M = 1;
+			_registers.T = 4;
+		} break;
+		case 0xA5: // AND A, L
+		{
+			_registers.A = _registers.A & _registers.L;
+
+			if (_registers.A == 0x00)
+				setFlag(FLAG_Z);
+			else
+				resetFlag(FLAG_Z);
+			resetFlag(FLAG_N);
+			setFlag(FLAG_H);
+			resetFlag(FLAG_C);
+
+			_registers.M = 1;
+			_registers.T = 4;
+		} break;
+		case 0xA6: // AND A, (HL)
+		{
+			_registers.A = _registers.A & _memory.readByte((_registers.H << 8) + _registers.L);
+
+			if (_registers.A == 0x00)
+				setFlag(FLAG_Z);
+			else
+				resetFlag(FLAG_Z);
+			resetFlag(FLAG_N);
+			setFlag(FLAG_H);
+			resetFlag(FLAG_C);
+
+			_registers.M = 2;
+			_registers.T = 8;
+		} break;
+		case 0xE6: // AND A, #
+		{
+			_registers.A = _registers.A & _memory.readByte(_registers.pc++);
+		
+			if (_registers.A == 0x00)
+				setFlag(FLAG_Z);
+			else
+				resetFlag(FLAG_Z);
+			resetFlag(FLAG_N);
+			setFlag(FLAG_H);
+			resetFlag(FLAG_C);
+
+			_registers.M = 2;
+			_registers.T = 8;
+		} break;
 		case 0x97: // SUB A
 		{
 			if ((_registers.A & 0x0F) >= (_registers.A & 0x0F))
@@ -1255,10 +1434,189 @@ void Cpu::emulateCycle()
 			_registers.M = 2;
 			_registers.T = 8;
 		} break;
-		case 0xAF: // XOR A,A
+		case 0xB7: // OR A, A
+		{
+			_registers.A = _registers.A | _registers.A;
+
+			if (_registers.A == 0x00)
+				setFlag(FLAG_Z);
+			else
+				resetFlag(FLAG_Z);
+			resetFlag(FLAG_H);
+			resetFlag(FLAG_N);
+			resetFlag(FLAG_C);
+			_registers.M = 1;
+			_registers.T = 4;
+		} break;
+		case 0xB0: // OR A, B
+		{
+			_registers.A = _registers.A | _registers.B;
+
+			if (_registers.A == 0x00)
+				setFlag(FLAG_Z);
+			else
+				resetFlag(FLAG_Z);
+			resetFlag(FLAG_H);
+			resetFlag(FLAG_N);
+			resetFlag(FLAG_C);
+			_registers.M = 1;
+			_registers.T = 4;
+		} break;
+		case 0xB1: // OR A, C
+		{
+			_registers.A = _registers.A | _registers.C;
+
+			if (_registers.A == 0x00)
+				setFlag(FLAG_Z);
+			else
+				resetFlag(FLAG_Z);
+			resetFlag(FLAG_H);
+			resetFlag(FLAG_N);
+			resetFlag(FLAG_C);
+			_registers.M = 1;
+			_registers.T = 4;
+		} break;
+		case 0xB2: // OR A, D
+		{
+			_registers.A = _registers.A | _registers.D;
+
+			if (_registers.A == 0x00)
+				setFlag(FLAG_Z);
+			else
+				resetFlag(FLAG_Z);
+			resetFlag(FLAG_H);
+			resetFlag(FLAG_N);
+			resetFlag(FLAG_C);
+			_registers.M = 1;
+			_registers.T = 4;
+		} break;
+		case 0xB3: // OR A, E
+		{
+			_registers.A = _registers.A | _registers.E;
+
+			if (_registers.A == 0x00)
+				setFlag(FLAG_Z);
+			else
+				resetFlag(FLAG_Z);
+			resetFlag(FLAG_H);
+			resetFlag(FLAG_N);
+			resetFlag(FLAG_C);
+			_registers.M = 1;
+			_registers.T = 4;
+		} break;
+		case 0xB4: // OR A, H
+		{
+			_registers.A = _registers.A | _registers.H;
+
+			if (_registers.A == 0x00)
+				setFlag(FLAG_Z);
+			else
+				resetFlag(FLAG_Z);
+			resetFlag(FLAG_H);
+			resetFlag(FLAG_N);
+			resetFlag(FLAG_C);
+			_registers.M = 1;
+			_registers.T = 4;
+		} break;
+		case 0xB5: // OR A, L
+		{
+			_registers.A = _registers.A | _registers.L;
+
+			if (_registers.A == 0x00)
+				setFlag(FLAG_Z);
+			else
+				resetFlag(FLAG_Z);
+			resetFlag(FLAG_H);
+			resetFlag(FLAG_N);
+			resetFlag(FLAG_C);
+			_registers.M = 1;
+			_registers.T = 4;
+		} break;
+		case 0xAF: // XOR A, A
 		{
 			_registers.A ^= _registers.A; // (A xor A = 0)
-			setFlag(FLAG_Z); // we know A xor A is 0
+			if (_registers.A == 0x00)
+				setFlag(FLAG_Z); // we know A xor A is 0
+			else
+				resetFlag(FLAG_Z);
+			resetFlag(FLAG_N);
+			resetFlag(FLAG_H);
+			resetFlag(FLAG_C);
+			_registers.M = 1;
+			_registers.T = 4;
+		} break;
+		case 0xA8: // XOR A, B
+		{
+			_registers.A ^= _registers.B; // (A xor A = 0)
+			if (_registers.A == 0x00)
+				setFlag(FLAG_Z); // we know A xor A is 0
+			else
+				resetFlag(FLAG_Z);
+			resetFlag(FLAG_N);
+			resetFlag(FLAG_H);
+			resetFlag(FLAG_C);
+			_registers.M = 1;
+			_registers.T = 4;
+		} break;
+		case 0xA9: // XOR A, C
+		{
+			_registers.A ^= _registers.C; // (A xor A = 0)
+			if (_registers.A == 0x00)
+				setFlag(FLAG_Z); // we know A xor A is 0
+			else
+				resetFlag(FLAG_Z);
+			resetFlag(FLAG_N);
+			resetFlag(FLAG_H);
+			resetFlag(FLAG_C);
+			_registers.M = 1;
+			_registers.T = 4;
+		} break;
+		case 0xAA: // XOR A, D
+		{
+			_registers.A ^= _registers.D; // (A xor A = 0)
+			if (_registers.A == 0x00)
+				setFlag(FLAG_Z); // we know A xor A is 0
+			else
+				resetFlag(FLAG_Z);
+			resetFlag(FLAG_N);
+			resetFlag(FLAG_H);
+			resetFlag(FLAG_C);
+			_registers.M = 1;
+			_registers.T = 4;
+		} break;
+		case 0xAB: // XOR A, E
+		{
+			_registers.A ^= _registers.E; // (A xor A = 0)
+			if (_registers.A == 0x00)
+				setFlag(FLAG_Z); // we know A xor A is 0
+			else
+				resetFlag(FLAG_Z);
+			resetFlag(FLAG_N);
+			resetFlag(FLAG_H);
+			resetFlag(FLAG_C);
+			_registers.M = 1;
+			_registers.T = 4;
+		} break;
+		case 0xAC: // XOR A, H
+		{
+			_registers.A ^= _registers.H; // (A xor A = 0)
+			if (_registers.A == 0x00)
+				setFlag(FLAG_Z); // we know A xor A is 0
+			else
+				resetFlag(FLAG_Z);
+			resetFlag(FLAG_N);
+			resetFlag(FLAG_H);
+			resetFlag(FLAG_C);
+			_registers.M = 1;
+			_registers.T = 4;
+		} break;
+		case 0xAD: // XOR A, L
+		{
+			_registers.A ^= _registers.L; // (A xor A = 0)
+			if (_registers.A == 0x00)
+				setFlag(FLAG_Z); // we know A xor A is 0
+			else
+				resetFlag(FLAG_Z);
 			resetFlag(FLAG_N);
 			resetFlag(FLAG_H);
 			resetFlag(FLAG_C);
@@ -1702,7 +2060,12 @@ void Cpu::emulateCycle()
 			_registers.M = 1;
 			_registers.T = 4;
 		} break;
-
+		case 0xFB: // EI
+		{
+			std::cout << std::hex << _registers.pc << " Unimplemented EI" << std::endl;
+			_registers.M = 1;
+			_registers.T = 4;
+		} break;
 		// Restarts
 		case 0xFF: // RST 0x38
 		{
@@ -1712,6 +2075,23 @@ void Cpu::emulateCycle()
 			_registers.M = 8;
 			_registers.T = 32;
 		} break;						
+		case 0x2F: // CPL
+		{
+			_registers.A = ~_registers.A;
+			setFlag(FLAG_N);
+			setFlag(FLAG_H);
+			_registers.M = 1;
+			_registers.T = 4;
+		} break;
+		case 0x3F: // SCF
+		{
+			setFlag(FLAG_C);
+			resetFlag(FLAG_N);
+			resetFlag(FLAG_H);
+
+			_registers.M = 1;
+			_registers.T = 4;
+		} break;
 
 		// CB
 		case 0xCB:
@@ -1769,6 +2149,125 @@ void Cpu::emulateCycle()
 						setFlag(FLAG_Z);
 					else
 						resetFlag(FLAG_Z);
+
+					_registers.M = 2;
+					_registers.T = 8;
+				} break;
+				case 0x37: // SWAP A
+				{
+					_registers.A = ((_registers.A & 0x0F) << 4 |
+						            (_registers.A & 0xF0) >> 4);
+
+					if (_registers.A == 0x00)
+						setFlag(FLAG_Z);
+					else
+						resetFlag(FLAG_Z);
+
+					resetFlag(FLAG_H);
+					resetFlag(FLAG_C);
+					resetFlag(FLAG_N);
+
+					_registers.M = 2;
+					_registers.T = 8;
+				} break;
+				case 0x30: // SWAP B
+				{
+					_registers.B = ((_registers.B & 0x0F) << 4 |
+						            (_registers.B & 0xF0) >> 4);
+
+					if (_registers.B == 0x00)
+						setFlag(FLAG_Z);
+					else
+						resetFlag(FLAG_Z);
+
+					resetFlag(FLAG_H);
+					resetFlag(FLAG_C);
+					resetFlag(FLAG_N);
+
+					_registers.M = 2;
+					_registers.T = 8;
+				} break;
+				case 0x31: // SWAP C
+				{
+					_registers.C = ((_registers.C & 0x0F) << 4 |
+						            (_registers.C & 0xF0) >> 4);
+
+					if (_registers.C == 0x00)
+						setFlag(FLAG_Z);
+					else
+						resetFlag(FLAG_Z);
+
+					resetFlag(FLAG_H);
+					resetFlag(FLAG_C);
+					resetFlag(FLAG_N);
+
+					_registers.M = 2;
+					_registers.T = 8;
+				} break;
+				case 0x32: // SWAP D
+				{
+					_registers.D = ((_registers.D & 0x0F) << 4 |
+						            (_registers.D & 0xF0) >> 4);
+
+					if (_registers.D == 0x00)
+						setFlag(FLAG_Z);
+					else
+						resetFlag(FLAG_Z);
+
+					resetFlag(FLAG_H);
+					resetFlag(FLAG_C);
+					resetFlag(FLAG_N);
+
+					_registers.M = 2;
+					_registers.T = 8;
+				} break;
+				case 0x33: // SWAP E
+				{
+					_registers.E = ((_registers.E & 0x0F) << 4 |
+						            (_registers.E & 0xF0) >> 4);
+
+					if (_registers.E == 0x00)
+						setFlag(FLAG_Z);
+					else
+						resetFlag(FLAG_Z);
+
+					resetFlag(FLAG_H);
+					resetFlag(FLAG_C);
+					resetFlag(FLAG_N);
+
+					_registers.M = 2;
+					_registers.T = 8;
+				} break;
+				case 0x34: // SWAP H
+				{
+					_registers.H = ((_registers.H & 0x0F) << 4 |
+						            (_registers.H & 0xF0) >> 4);
+
+					if (_registers.H == 0x00)
+						setFlag(FLAG_Z);
+					else
+						resetFlag(FLAG_Z);
+
+					resetFlag(FLAG_H);
+					resetFlag(FLAG_C);
+					resetFlag(FLAG_N);
+
+					_registers.M = 2;
+					_registers.T = 8;
+				} break;
+				case 0x35: // SWAP L
+				{
+					_registers.L = ((_registers.L & 0x0F) << 4 |
+						            (_registers.L & 0xF0) >> 4);
+
+					if (_registers.L == 0x00)
+						setFlag(FLAG_Z);
+					else
+						resetFlag(FLAG_Z);
+
+					resetFlag(FLAG_H);
+					resetFlag(FLAG_C);
+					resetFlag(FLAG_N);
 
 					_registers.M = 2;
 					_registers.T = 8;
