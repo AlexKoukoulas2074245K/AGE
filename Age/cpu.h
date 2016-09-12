@@ -13,17 +13,25 @@ public:
 	void printRegisters();
 
 	const word* getPC() const;
-	const clock_t* getT() const;
+	const timer_t* getT() const;
 
 	bool isFlagSet(const byte flag) const;
 	byte getFlag(const byte flag) const;
 
+	byte getIME() const;
+
+	void RST40();
+	void RST48();
+	void RST50();
+	void RST58();
+	void RST60();
+
 public:
 
-	static const byte FLAG_Z = 0x01;
-	static const byte FLAG_N = 0x02;
-	static const byte FLAG_H = 0x04;
-	static const byte FLAG_C = 0x08;
+	static const byte FLAG_Z = 0x80;
+	static const byte FLAG_N = 0x40;
+	static const byte FLAG_H = 0x20;
+	static const byte FLAG_C = 0x10;
 
 private:
 
@@ -41,13 +49,13 @@ private:
 	{
 		byte A, B, C, D, E, H, L, F;
 		word pc, sp;
-		clock_t M, T;
+		timer_t M, T;
+		byte ime;
 	};
 
 private:
 	registers   _registers;
-	byte        _flags;
-	clock_t     _internalM, _internalT;
+	timer_t     _internalM, _internalT;
 	byte        _opcode;
 	byte        _isBitOpcode;
 	error_state _errorState;

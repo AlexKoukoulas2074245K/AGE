@@ -28,15 +28,21 @@ public:
 	void writeByte(const word addr, const byte val);
 
 	void resetDisplay();
-	void setZ80TimeRegister(const clock_t* T);
+	
+	void setZ80TimeRegister(const timer_t* T);
+	void setIFRef(byte* intFlag);
 	void setVramRef(byte* vram);
+
 	void emulateGameboyDisplay();
+	void changeSpriteData(const word addr, const byte val);
 	void updateTile(const word tile, const word x, const word y, const byte color);
 
 private:
 	void renderScanline();
 	bool isControlFlagSet(const byte flag) const;
 	void setControlFlag(const byte flag);
+	bool isSpriteFlagSet(const byte spriteIndex, const byte flag) const;
+	void setSpriteFlag(const byte spriteIndex, const byte flag);
 	void setPixel(const byte x, const byte y, const pixel_t& pixel);
 	pixel_t getPixel(const byte x, const byte y) const;
 
@@ -49,20 +55,33 @@ private:
 		DISPLAY_MODE_VRAM_READ
 	};
 
+	struct sprite_data
+	{
+		int x, y;
+		byte tile;
+		byte flags;
+	};
+
 private:
 	byte _gfx[DISPLAY_COLS * DISPLAY_ROWS * DISPLAY_DEPTH];
 	byte _tileset[DISPLAY_TILES][DISPLAY_TILE_ROWS][DISPLAY_TILE_COLS];
-	pixel_t _palette[4];
+	sprite_data _spriteData[40];
+	
+	pixel_t _bkgPalette[4];
+	pixel_t _spr0Palette[4];
+	pixel_t _spr1Palette[4];
 
-	const clock_t* _z80Time;
+	const timer_t* _z80Time;
 	byte*          _vramRef;
+	byte*          _intFlag;
 
 	display_mode   _displayMode;
-	clock_t        _displayClock;
+	timer_t        _displayClock;
 	byte           _displayLine;
 	byte           _displayScrollX;
 	byte           _displayScrollY;
 	byte           _displayControlRegister;
+	byte           _statRegister;
 
 	fill_display_callback_t _fillDisplayCallback;
 };

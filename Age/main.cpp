@@ -1,15 +1,19 @@
+#include <vld.h>
+
 #include "common.h"
 #include "memory.h"
 #include "display.h"
 #include "cpu.h"
+#include "input.h"
 
 #include <iostream>
 #include <fstream>
 #include <vector>
 #include <cstring>
 #include <SDL.h>
-
-#define CURR_ADDRESS_TO_BREAK 0x0034
+// 2800
+// 371
+#define CURR_ADDRESS_TO_BREAK 0x02800
 
 static const char* DEBUG_FLAG = "-d";
 
@@ -36,8 +40,10 @@ void loadRom(const char* const arg, Memory& memory)
 
 void fillDisplay(byte* gfxData)
 {
-	SDL_SetRenderDrawColor(sdlRenderer, 255, 0, 0, 255);
+	SDL_SetRenderDrawColor(sdlRenderer, 248, 248, 248, 255);
 	SDL_RenderClear(sdlRenderer);
+	SDL_FreeSurface(sdlDisplaySurface);
+
 	sdlDisplaySurface = SDL_CreateRGBSurfaceFrom(
 		static_cast<void*>(gfxData),
 		160, 144,
@@ -48,6 +54,8 @@ void fillDisplay(byte* gfxData)
 		0x00FF0000,
 		0xFF000000
 	);
+	
+	SDL_DestroyTexture(sdlDisplayTexture);
 	sdlDisplayTexture = SDL_CreateTextureFromSurface(sdlRenderer, sdlDisplaySurface);
 	SDL_RenderCopy(sdlRenderer, sdlDisplayTexture, nullptr, nullptr);
 	SDL_RenderPresent(sdlRenderer);
@@ -72,13 +80,15 @@ int main(int argc, char* argv[])
 	}
 
 	// Initialize Core Systems
+	Input input;
 	Display display(fillDisplay);
-	Memory memory(display);
+	Memory memory(display, input);
 	Cpu cpu(memory);
 
 	// Set additional dependencies in core systems
 	memory.setPcRef(cpu.getPC());
 	display.setZ80TimeRegister(cpu.getT());
+	input.setIFRef(memory.getIFPtr());
 
 	// Initialize SDL
 	// TODO: Handle Errors
@@ -103,6 +113,7 @@ int main(int argc, char* argv[])
 	bool shouldPrint = false;
 	bool spacePressed = false;
 	bool spacePressed0 = false;
+	int i = 0;
 	while(running)
 	{
 		while (SDL_PollEvent(&sdlEvent))
@@ -110,23 +121,76 @@ int main(int argc, char* argv[])
 			switch (sdlEvent.type)
 			{
 				case SDL_QUIT: running = false; break;
-				case SDL_KEYDOWN: if (sdlEvent.key.keysym.sym == SDLK_SPACE) spacePressed = true; break;
-				case SDL_KEYUP: if (sdlEvent.key.keysym.sym == SDLK_SPACE) spacePressed = false; break;
+				case SDL_KEYDOWN:
+				{
+					switch (sdlEvent.key.keysym.sym)
+					{
+						case SDLK_SPACE: spacePressed = true; break;
+						default: input.keyDown(sdlEvent.key.keysym.sym);
+					}
+					
+				} break;
+				case SDL_KEYUP:
+				{
+					switch (sdlEvent.key.keysym.sym)
+					{
+						case SDLK_SPACE: spacePressed = false; break;
+						default: input.keyUp(sdlEvent.key.keysym.sym);
+					}
+				} break;
 			}
 		}
 		
 		if (*cpu.getPC() == CURR_ADDRESS_TO_BREAK &&
-			(*cpu.getPC() < 0x0095 || *cpu.getPC() > 0x00A7))
-		{
-   			 shouldPrint = true;
+			(*cpu.getPC() < 0x0095 || *cpu.getPC() > 0x0343))
+		{			
+			i++;
 		}
-
+		if (i == 2 && *cpu.getPC() == 0x0463)
+		{
+			shouldPrint = true;
+		}
+		if (i == 2 && *cpu.getPC() == 0xFFB6)
+		{
+			shouldPrint = true;
+		}
 		if (spacePressed && !spacePressed0) 
 			shouldPrint = !shouldPrint;
 
 		cpu.emulateCycle();
 		display.emulateGameboyDisplay();
 		
+		if (cpu.getIME() && memory.getIE() && memory.getIF())
+		{
+			byte maskedInterrupts = memory.getIE() & memory.getIF();
+
+			if ((maskedInterrupts & Memory::INTERRUPT_FLAG_VBLANK) != 0)
+			{
+				memory.resetInterrupt(Memory::INTERRUPT_FLAG_VBLANK);
+				cpu.RST40();
+			}
+			else if ((maskedInterrupts & Memory::INTERRUPT_FLAG_TOGGLELCD) != 0)
+			{
+				memory.resetInterrupt(Memory::INTERRUPT_FLAG_TOGGLELCD);
+				cpu.RST48();
+			}
+			else if ((maskedInterrupts & Memory::INTERRUPT_FLAG_TIMER) != 0)
+			{
+				memory.resetInterrupt(Memory::INTERRUPT_FLAG_TIMER);
+				cpu.RST50();
+			}
+			else if ((maskedInterrupts & Memory::INTERRUPT_FLAG_SERIAL) != 0)
+			{
+				memory.resetInterrupt(Memory::INTERRUPT_FLAG_SERIAL);
+				cpu.RST58();
+			}
+			else if ((maskedInterrupts & Memory::INTERRUPT_FLAG_JOYPAD) != 0)
+			{
+				memory.resetInterrupt(Memory::INTERRUPT_FLAG_JOYPAD);
+				cpu.RST60();
+			}
+		}
+
 #if defined (_DEBUG) || defined (DEBUG)
 		if (shouldPrint)
 			//cpu.printRegisters();

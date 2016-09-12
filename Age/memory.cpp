@@ -1,6 +1,10 @@
 #include "memory.h"
 #include "display.h"
+#include "input.h"
 
+#include <ctime>
+#include <random>
+#include <iostream>
 #include <memory>
 
 static const byte i_bios[256] = 
@@ -23,12 +27,16 @@ static const byte i_bios[256] =
 	0xF5, 0x06, 0x19, 0x78, 0x86, 0x23, 0x05, 0x20, 0xFB, 0x86, 0x20, 0xFE, 0x3E, 0x01, 0xE0, 0x50
 };
 
-Memory::Memory(Display& displayRef)
+Memory::Memory(Display& displayRef, Input& inputRef)
 	: _pcref(nullptr)
 	, _displayRef(displayRef)
+	, _inputRef(inputRef)
+	, _ie(0)
+	, _if(0)
 {
 	resetMemory();
 	_displayRef.setVramRef(_vram);
+	_displayRef.setIFRef(&_if);
 }
 
 byte Memory::readByte(const word addr)
@@ -42,7 +50,7 @@ byte Memory::readByte(const word addr)
 			{
 				if (addr < 0x0100)
 					return _bios[addr];
-				if (*_pcref == 0x0100)
+				if (*_pcref >= 0x0100)
 					_inbios = 0;				
 			}
 
@@ -98,19 +106,51 @@ byte Memory::readByte(const word addr)
 		{
 			if (addr < 0xFE00)
 				return _wram[addr & 0x1FFF];
-			else if (addr < 0xFEA0)
+			else if (addr < 0xFEFF)
 				return _oam[addr & 0xFF];
 			else if (addr < 0xFF80)
 			{
 				switch (addr & 0x00F0)
 				{
-					case 0x40: case 0x50: case 0x60: case 0x70:
-						return _displayRef.readByte(addr);
+					case 0x00:
+					{
+						if (addr == 0xFF00)
+							return _inputRef.readByte(addr);
+						else if (addr == 0xFF01 || addr == 0xFF02)
+						{
+							std::cout << "At: 0x" << std::hex << *_pcref << " unimplemented serial transfer read " << std::hex << addr << " reading from iom instead" << std::endl;
+							return _iomem[addr & 0x7F];
+						}
+						else if (addr == 0xFF04)
+						{							
+							return (byte)std::rand() % 0xFF;
+						}
+						else if (addr == 0xFF05 || addr == 0xFF06 || addr == 0xFF07)
+						{
+							std::cout << "At: 0x" << std::hex << *_pcref << " unimplemented timer register read " << std::hex << addr << " reading from iom instead" << std::endl;
+							return _iomem[addr & 0x7F];
+						}
+						else if (addr == 0xFF0F)
+							return _if;
+					} break;
+					case 0x40: 
+					{
+						if (addr == 0xFF46 || addr == 0xFF4a || addr == 0xFF4b)
+							return _iomem[addr & 0x7F];
+						else
+							return _displayRef.readByte(addr); 
+					} break;
+					default:
+						std::cout << "At: 0x" << std::hex << *_pcref << " unhandled read from: 0x" << std::hex << addr <<  " (from iom) " << std::endl;
+						return _iomem[addr & 0x7F];
 				}
 				return 0;
 			}
-			else
+			else if (addr < 0xFFFF)
 				return _zram[addr & 0x7F];
+			else
+				return _ie;
+				
 		} break;
 	}
 
@@ -133,7 +173,7 @@ void Memory::writeByte(const word addr, const byte val)
 			{
 				if (addr < 0x0100)
 					_bios[addr] = val;
-				if (*_pcref == 0x0100)
+				if (*_pcref >= 0x0100)
 					_inbios = 0;				
 			}
 
@@ -175,8 +215,8 @@ void Memory::writeByte(const word addr, const byte val)
 			for (byte x = 0; x < 8; ++x)
 			{
 				bitIndex = 1 << (7 - x);
-				byte color = (_vram[baseAddress] & bitIndex) == 0 ? 0 : 1 +
-					         (_vram[baseAddress] & bitIndex) == 0 ? 0 : 2;
+				byte color = ((_vram[baseAddress] & bitIndex) != 0 ? 1 : 0) +
+					         ((_vram[baseAddress + 1] & bitIndex) != 0 ? 2 : 0);
 
 				_displayRef.updateTile(tile, x, y, color);
 			}
@@ -208,20 +248,61 @@ void Memory::writeByte(const word addr, const byte val)
 		{
 			if (addr < 0xFE00)
 				_wram[addr & 0x1FFF] = val;
-			else if (addr < 0xFEA0)
-				_oam[addr & 0xFF] = val;
+			else if (addr < 0xFEFF)
+			{
+				_oam[addr & 0x9F] = val;
+				_displayRef.changeSpriteData(addr - 0xFE00, val);
+			}
 			else if (addr < 0xFF80)
 			{
 				switch (addr & 0x00F0)
 				{
-					case 0x40: case 0x50: case 0x60: case 0x70:
-					{
-						_displayRef.writeByte(addr, val);
+					case 0x00:
+					{						
+						if (addr == 0xFF00) 
+							_inputRef.writeByte(addr, val);
+						else if (addr == 0xFF01 || addr == 0xFF02)
+						{
+							std::cout << "At: 0x" << std::hex << *_pcref << " unimplemented serial transfer write " << std::hex << addr << " dumping to iom instead" << std::endl;
+							_iomem[addr & 0x7F] = val;
+						}
+						else if (addr == 0xFF04)
+						{
+							std::cout << "At: 0x" << std::hex << *_pcref << " unimplemented divider register write " << std::hex << addr << " dumping to iom instead" << std::endl;
+							_iomem[addr & 0x7F] = val;
+						}
+						else if (addr == 0xFF05 || addr == 0xFF06 || addr == 0xFF07)
+						{
+							std::cout << "At: 0x" << std::hex << *_pcref << " unimplemented timer register write " << std::hex << addr << " dumping to iom instead" << std::endl;
+							_iomem[addr & 0x7F] = val;
+						}
+						else if (addr == 0xFF0F)
+							_if = val; 
 					} break;
+					case 0x40:
+					{
+						if (addr == 0xFF4a || addr == 0xFF4b)
+							_iomem[addr & 0x7F] = val;
+						else if (addr == 0xFF46)
+							for (byte i = 0; i < 160; ++i)
+							{
+								byte nextByte = readByte((val << 8) + i);
+								_oam[i] = nextByte;
+								_displayRef.changeSpriteData(i, nextByte);
+							}
+						else
+							_displayRef.writeByte(addr, val);
+					} break;
+
+					default:
+						std::cout << "At: 0x" << std::hex << *_pcref << " unhandled write to: 0x" << std::hex << addr << " dumping to iom" << std::endl;
+						_iomem[addr & 0x7F] = val;
 				}				
 			}
-			else
+			else if (addr < 0xFFFF)
 				_zram[addr & 0x7F] = val;
+			else
+				_ie = val;
 		} break;
 	}
 }
@@ -231,6 +312,11 @@ void Memory::writeWord(const word addr, const word val)
 	writeByte(addr,     val & 0x00FF);
 	writeByte(addr + 1, val >> 8);
 }
+
+byte Memory::getIE() const { return _ie; }
+byte Memory::getIF() const { return _if; }
+byte* Memory::getIFPtr() { return &_if; }
+void Memory::resetInterrupt(const byte interrupt) { _if &= ~interrupt; }
 
 void Memory::fillRom(const std::vector<char>& romData)
 {
@@ -251,4 +337,9 @@ void Memory::resetMemory()
 	memset(_oam,   0, sizeof(_oam));
 	memset(_iomem, 0, sizeof(_iomem));
 	memset(_zram,  0, sizeof(_zram));
+
+	_ie = 0;
+	_if = 0;
+
+	std::srand((unsigned int)std::time(NULL));
 }
