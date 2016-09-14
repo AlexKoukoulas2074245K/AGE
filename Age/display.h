@@ -3,26 +3,43 @@
 #include "common.h"
 
 #include <functional>
+#include <memory>
 
+class Window;
 class Display final
 {
 public:
-	static const word DISPLAY_COLS      = 160;
-	static const word DISPLAY_ROWS      = 144;
-	static const byte DISPLAY_DEPTH     = 4;
-	static const word DISPLAY_TILES     = 384;
-	static const word DISPLAY_TILE_COLS = 8;
-	static const word DISPLAY_TILE_ROWS = 8;
+	static const word DISPLAY_COLS        = 160;
+	static const word DISPLAY_ROWS        = 144;
+	static const byte DISPLAY_DEPTH       = 4;
+	static const word DISPLAY_TILES       = 384;
+	static const word DISPLAY_SPRITES     = 40;
+	static const word DISPLAY_TILE_COLS   = 8;
+	static const word DISPLAY_TILE_ROWS   = 8;
+	static const word DISPLAY_SPRITE_AREA = 64;
+
+	static const word DISPLAY_TILE_VIEW_BASE_WIDTH     = 128;
+	static const word DISPLAY_TILE_VIEW_BASE_HEIGHT    = 192;
+	static const word DISPLAY_SPRITE_VIEW_BASE_WIDTH   = 64;
+	static const word DISPLAY_SPRITE_VIEW_BASE_HEIGHT  = 40;
+	static const word DISPLAY_TILE_VIEW_TILES_PER_ROW = 16;
 
 	using pixel_t = struct pixel
 	{
 		byte r, g, b, a;
 	};
 
-	using fill_display_callback_t = std::function<void(byte*)>;
+	struct sprite_data
+	{
+		int x, y;
+		byte tile;
+		byte flags;
+	};
+
+	using fill_displays_callback_t  = std::function<void(byte*, byte*, byte*)>;
 
 public:
-	Display(fill_display_callback_t);
+	Display(fill_displays_callback_t);
 
 	byte readByte(const word addr);
 	void writeByte(const word addr, const byte val);
@@ -35,10 +52,13 @@ public:
 
 	void emulateGameboyDisplay();
 	void changeSpriteData(const word addr, const byte val);
-	void updateTile(const word tile, const word x, const word y, const byte color);
+	void changeTileData(const word tile, const word x, const word y, const byte color);
+	void printSpriteData(const int mouseX, const int mouseY);
 
 private:
 	void renderScanline();
+	void fillTileViewGfx();
+	void fillSpriteViewGfx();
 	bool isControlFlagSet(const byte flag) const;
 	void setControlFlag(const byte flag);
 	bool isSpriteFlagSet(const byte spriteIndex, const byte flag) const;
@@ -55,17 +75,13 @@ private:
 		DISPLAY_MODE_VRAM_READ
 	};
 
-	struct sprite_data
-	{
-		int x, y;
-		byte tile;
-		byte flags;
-	};
-
 private:
 	byte _gfx[DISPLAY_COLS * DISPLAY_ROWS * DISPLAY_DEPTH];
 	byte _tileset[DISPLAY_TILES][DISPLAY_TILE_ROWS][DISPLAY_TILE_COLS];
-	sprite_data _spriteData[40];
+	byte _tileGfx[DISPLAY_TILE_VIEW_BASE_WIDTH * DISPLAY_TILE_VIEW_BASE_HEIGHT* DISPLAY_DEPTH];
+	byte _spriteGfx[DISPLAY_SPRITE_VIEW_BASE_WIDTH * DISPLAY_SPRITE_VIEW_BASE_HEIGHT * DISPLAY_DEPTH];
+
+	sprite_data _spriteData[DISPLAY_SPRITES];
 	
 	pixel_t _bkgPalette[4];
 	pixel_t _spr0Palette[4];
@@ -83,5 +99,5 @@ private:
 	byte           _displayControlRegister;
 	byte           _statRegister;
 
-	fill_display_callback_t _fillDisplayCallback;
+	fill_displays_callback_t  _fillDisplayCallback;
 };

@@ -172,6 +172,7 @@ static const std::unordered_map<byte, std::string> s_instrDisassembly =
 	{ 0xB3, "OR A, E" },
 	{ 0xB4, "OR A, H" },
 	{ 0xB5, "OR A, L" },
+	{ 0xB6, "OR A, (HL) "},
 	{ 0xF6, "OR A, #" },
 	{ 0xAF, "XOR A, A" },
 	{ 0xA8, "XOR A, B" },
@@ -188,6 +189,7 @@ static const std::unordered_map<byte, std::string> s_instrDisassembly =
 	{ 0x8B, "ADC A, E" },
 	{ 0x8C, "ADC A, H" },
 	{ 0x8D, "ADC A, L" },
+	{ 0x8E, "ADC A, (HL)" },
 
 	// 16-bit ALU
 	{ 0x03, "INC BC" },
@@ -298,11 +300,26 @@ static const std::unordered_map<byte, std::string> s_bitOpcodeDisassembly =
 	{ 0x84, "RES 0, H" },
 	{ 0x85, "RES 0, L" },
 	{ 0x86, "RES 0, (HL) "},
+	{ 0x8E, "RES 1, (HL) "},
+	{ 0x96, "RES 2, (HL) " },
+	{ 0x9E, "RES 3, (HL) " },
+	{ 0xA6, "RES 4, (HL) " },
+	{ 0xAE, "RES 5, (HL) " },
+	{ 0xB6, "RES 6, (HL) " },
+	{ 0xBE, "RES 7, (HL) " },
 	{ 0x11, "RL C" },
 	
 	// Sets
-	{ 0xFE, "SET 7,(HL)" },
+	{ 0xC6, "SET 0, (HL)" },
+	{ 0xCE, "SET 1, (HL)" },
+	{ 0xD6, "SET 2, (HL)" },
+	{ 0xDE, "SET 3, (HL)" },
+	{ 0xE6, "SET 4, (HL)" },
+	{ 0xEE, "SET 5, (HL)" },
+	{ 0xF6, "SET 6, (HL)" },
+	{ 0xFE, "SET 7, (HL)" },
 	
+
 	// Shifts
 	{ 0x27, "SLA A" },
 	{ 0x20, "SLA B" },
@@ -1081,7 +1098,7 @@ void Cpu::emulateCycle()
 		} break;
 		case 0x3D: // DEC A
 		{
-			if (_registers.A != 0x10)
+			if ((_registers.A & 0x0F) == 0x00)
 				setFlag(FLAG_H);
 			else
 				resetFlag(FLAG_H);
@@ -1225,16 +1242,19 @@ void Cpu::emulateCycle()
 		} break;
 		case 0x87: // ADD A, A
 		{
-			if (0xFF - _registers.A <= _registers.A)
+			if (0xFF - _registers.A < _registers.A)
 				setFlag(FLAG_C);
 			else
 				resetFlag(FLAG_C);
 
-			if (0x0F - (_registers.A & 0x0F) <= (_registers.A & 0x0F))
-			resetFlag(FLAG_N);
+			if (0x0F - (_registers.A & 0x0F) < (_registers.A & 0x0F))
+				setFlag(FLAG_H);
+			else
+				resetFlag(FLAG_H);
 
 			_registers.A += _registers.A;
 
+			resetFlag(FLAG_N);
 			if (_registers.A == 0x00)
 				setFlag(FLAG_Z);
 			else
@@ -1245,15 +1265,19 @@ void Cpu::emulateCycle()
 		} break;
 		case 0x80: // ADD A, B
 		{
-			if (0xFF - _registers.A <= _registers.B)
+			if (0xFF - _registers.A < _registers.B)
 				setFlag(FLAG_C);
 			else
 				resetFlag(FLAG_C);
 
-			if (0x0F - (_registers.A & 0x0F) <= (_registers.B & 0x0F))
-				resetFlag(FLAG_N);
+			if (0x0F - (_registers.A & 0x0F) < (_registers.B & 0x0F))
+				setFlag(FLAG_H);
+			else
+				resetFlag(FLAG_H);
 
 			_registers.A += _registers.B;
+			
+			resetFlag(FLAG_N);
 
 			if (_registers.A == 0x00)
 				setFlag(FLAG_Z);
@@ -1265,14 +1289,17 @@ void Cpu::emulateCycle()
 		} break;
 		case 0x81: // ADD A, C
 		{
-			if (0xFF - _registers.A <= _registers.C)
+			if (0xFF - _registers.A < _registers.C)
 				setFlag(FLAG_C);
 			else
 				resetFlag(FLAG_C);
 
-			if (0x0F - (_registers.A & 0x0F) <= (_registers.C & 0x0F))
-				resetFlag(FLAG_N);
+			if (0x0F - (_registers.A & 0x0F) < (_registers.C & 0x0F))
+				setFlag(FLAG_H);
+			else
+				resetFlag(FLAG_H);
 
+			resetFlag(FLAG_N);
 			_registers.A += _registers.C;
 
 			if (_registers.A == 0x00)
@@ -1285,14 +1312,17 @@ void Cpu::emulateCycle()
 		} break;
 		case 0x82: // ADD A, D
 		{
-			if (0xFF - _registers.A <= _registers.D)
+			if (0xFF - _registers.A < _registers.D)
 				setFlag(FLAG_C);
 			else
 				resetFlag(FLAG_C);
 
-			if (0x0F - (_registers.A & 0x0F) <= (_registers.D & 0x0F))
-				resetFlag(FLAG_N);
+			if (0x0F - (_registers.A & 0x0F) < (_registers.D & 0x0F))
+				setFlag(FLAG_H);
+			else
+				resetFlag(FLAG_H);
 
+			resetFlag(FLAG_N);
 			_registers.A += _registers.D;
 
 			if (_registers.A == 0x00)
@@ -1305,13 +1335,17 @@ void Cpu::emulateCycle()
 		} break;
 		case 0x83: // ADD A, E
 		{
-			if (0xFF - _registers.A <= _registers.E)
+			if (0xFF - _registers.A < _registers.E)
 				setFlag(FLAG_C);
 			else
 				resetFlag(FLAG_C);
 
-			if (0x0F - (_registers.A & 0x0F) <= (_registers.E & 0x0F))
-				resetFlag(FLAG_N);
+			if (0x0F - (_registers.A & 0x0F) < (_registers.E & 0x0F))
+				setFlag(FLAG_H);
+			else
+				resetFlag(FLAG_H);
+
+			resetFlag(FLAG_N);
 
 			_registers.A += _registers.E;
 
@@ -1325,14 +1359,17 @@ void Cpu::emulateCycle()
 		} break;
 		case 0x84: // ADD A, H
 		{
-			if (0xFF - _registers.A <= _registers.H)
+			if (0xFF - _registers.A < _registers.H)
 				setFlag(FLAG_C);
 			else
 				resetFlag(FLAG_C);
 
-			if (0x0F - (_registers.A & 0x0F) <= (_registers.H & 0x0F))
-				resetFlag(FLAG_N);
+			if (0x0F - (_registers.A & 0x0F) < (_registers.H & 0x0F))
+				setFlag(FLAG_H);
+			else
+				resetFlag(FLAG_H);
 
+			resetFlag(FLAG_N);
 			_registers.A += _registers.H;
 
 			if (_registers.A == 0x00)
@@ -1345,13 +1382,17 @@ void Cpu::emulateCycle()
 		} break;
 		case 0x85: // ADD A, L
 		{
-			if (0xFF - _registers.A <= _registers.L)
+			if (0xFF - _registers.A < _registers.L)
 				setFlag(FLAG_C);
 			else
 				resetFlag(FLAG_C);
 
-			if (0x0F - (_registers.A & 0x0F) <= (_registers.L & 0x0F))
-				resetFlag(FLAG_N);
+			if (0x0F - (_registers.A & 0x0F) < (_registers.L & 0x0F))
+				setFlag(FLAG_H);
+			else
+				resetFlag(FLAG_H);
+
+			resetFlag(FLAG_N);
 
 			_registers.A += _registers.L;
 
@@ -1366,14 +1407,18 @@ void Cpu::emulateCycle()
 		case 0x86: // ADD A, HL
 		{
 			byte val = _memory.readByte((_registers.H << 8) + _registers.L);
-			if (0xFF - _registers.A <= val)
+			if (0xFF - _registers.A < val)
 				setFlag(FLAG_C);
 			else
 				resetFlag(FLAG_C);
 
-			if (0x0F - (_registers.A & 0x0F) <= (val & 0x0F))
-				resetFlag(FLAG_N);
+			if (0x0F - (_registers.A & 0x0F) < (val & 0x0F))
+				setFlag(FLAG_H);
+			else
+				resetFlag(FLAG_H);
 
+			resetFlag(FLAG_N);
+			
 			_registers.A += val;
 
 			if (_registers.A == 0x00)
@@ -2039,6 +2084,20 @@ void Cpu::emulateCycle()
 			_registers.M = 1;
 			_registers.T = 4;
 		} break;
+		case 0xB6: // OR A, (HL)
+		{
+			_registers.A = _registers.A | _memory.readByte((_registers.H << 8) + _registers.L);
+
+			if (_registers.A == 0x00)
+				setFlag(FLAG_Z);
+			else
+				resetFlag(FLAG_Z);
+			resetFlag(FLAG_H);
+			resetFlag(FLAG_N);
+			resetFlag(FLAG_C);
+			_registers.M = 1;
+			_registers.T = 4;
+		} break;
 		case 0xF6: // OR A, #
 		{
 			_registers.A = _registers.A | _memory.readByte(_registers.pc++);
@@ -2159,19 +2218,21 @@ void Cpu::emulateCycle()
 		} break;
 		case 0x8F: // ADC A, A
 		{
-			if (0x0F - (_registers.A & 0x0F) <= getFlag(FLAG_C) + (_registers.A & 0x0F))
+			byte flagC = getFlag(FLAG_C);
+
+			if (0x0F - (_registers.A & 0x0F) < flagC + (_registers.A & 0x0F))
 				setFlag(FLAG_H);
 			else
 				resetFlag(FLAG_H);
 
-			if (0xFF - _registers.A <= getFlag(FLAG_C) + _registers.A)
+			if (0xFF - _registers.A < flagC + _registers.A)
 				setFlag(FLAG_C);
 			else
 				resetFlag(FLAG_C);
 
 			resetFlag(FLAG_N);
 
-			_registers.A += getFlag(FLAG_C) + _registers.A;
+			_registers.A += flagC + _registers.A;
 
 			if (_registers.A == 0x00)
 				setFlag(FLAG_Z);
@@ -2183,19 +2244,21 @@ void Cpu::emulateCycle()
 		} break;
 		case 0x88: // ADC A, B
 		{			
-			if (0x0F - (_registers.A & 0x0F) <= getFlag(FLAG_C) + (_registers.B & 0x0F))
+			byte flagC = getFlag(FLAG_C);
+
+			if (0x0F - (_registers.A & 0x0F) < flagC + (_registers.B & 0x0F))
 				setFlag(FLAG_H);
 			else
 				resetFlag(FLAG_H);
 
-			if (0xFF - _registers.A <= getFlag(FLAG_C) + _registers.B)
+			if (0xFF - _registers.A < flagC + _registers.B)
 				setFlag(FLAG_C);
 			else
 				resetFlag(FLAG_C);
 
 			resetFlag(FLAG_N);
 
-			_registers.A += getFlag(FLAG_C) + _registers.B;
+			_registers.A += flagC + _registers.B;
 
 			if (_registers.A == 0x00)
 				setFlag(FLAG_Z);
@@ -2207,19 +2270,21 @@ void Cpu::emulateCycle()
 		} break;
 		case 0x89: // ADC A, C
 		{
-			if (0x0F - (_registers.A & 0x0F) <= getFlag(FLAG_C) + (_registers.C & 0x0F))
+			byte flagC = getFlag(FLAG_C);
+
+			if (0x0F - (_registers.A & 0x0F) < flagC + (_registers.C & 0x0F))
 				setFlag(FLAG_H);
 			else
 				resetFlag(FLAG_H);
 
-			if (0xFF - _registers.A <= getFlag(FLAG_C) + _registers.C)
+			if (0xFF - _registers.A < flagC + _registers.C)
 				setFlag(FLAG_C);
 			else
 				resetFlag(FLAG_C);
 
 			resetFlag(FLAG_N);
 
-			_registers.A += getFlag(FLAG_C) + _registers.C;
+			_registers.A += flagC + _registers.C;
 
 			if (_registers.A == 0x00)
 				setFlag(FLAG_Z);
@@ -2231,19 +2296,21 @@ void Cpu::emulateCycle()
 		} break;
 		case 0x8A: // ADC A, D
 		{
-			if (0x0F - (_registers.A & 0x0F) <= getFlag(FLAG_C) + (_registers.D & 0x0F))
+			byte flagC = getFlag(FLAG_C);
+
+			if (0x0F - (_registers.A & 0x0F) < flagC + (_registers.D & 0x0F))
 				setFlag(FLAG_H);
 			else
 				resetFlag(FLAG_H);
 
-			if (0xFF - _registers.A <= getFlag(FLAG_C) + _registers.D)
+			if (0xFF - _registers.A < flagC + _registers.D)
 				setFlag(FLAG_C);
 			else
 				resetFlag(FLAG_C);
 
 			resetFlag(FLAG_N);
 
-			_registers.A += getFlag(FLAG_C) + _registers.D;
+			_registers.A += flagC + _registers.D;
 
 			if (_registers.A == 0x00)
 				setFlag(FLAG_Z);
@@ -2255,19 +2322,21 @@ void Cpu::emulateCycle()
 		} break;
 		case 0x8B: // ADC A, E
 		{
-			if (0x0F - (_registers.A & 0x0F) <= getFlag(FLAG_C) + (_registers.E & 0x0F))
+			byte flagC = getFlag(FLAG_C);
+
+			if (0x0F - (_registers.A & 0x0F) < flagC + (_registers.E & 0x0F))
 				setFlag(FLAG_H);
 			else
 				resetFlag(FLAG_H);
 
-			if (0xFF - _registers.A <= getFlag(FLAG_C) + _registers.E)
+			if (0xFF - _registers.A < flagC + _registers.E)
 				setFlag(FLAG_C);
 			else
 				resetFlag(FLAG_C);
 
 			resetFlag(FLAG_N);
 
-			_registers.A += getFlag(FLAG_C) + _registers.E;
+			_registers.A += flagC + _registers.E;
 
 			if (_registers.A == 0x00)
 				setFlag(FLAG_Z);
@@ -2279,19 +2348,21 @@ void Cpu::emulateCycle()
 		} break;
 		case 0x8C: // ADC A, H
 		{
-			if (0x0F - (_registers.A & 0x0F) <= getFlag(FLAG_C) + (_registers.H & 0x0F))
+			byte flagC = getFlag(FLAG_C);
+
+			if (0x0F - (_registers.A & 0x0F) < flagC + (_registers.H & 0x0F))
 				setFlag(FLAG_H);
 			else
 				resetFlag(FLAG_H);
 
-			if (0xFF - _registers.A <= getFlag(FLAG_C) + _registers.H)
+			if (0xFF - _registers.A < flagC + _registers.H)
 				setFlag(FLAG_C);
 			else
 				resetFlag(FLAG_C);
 
 			resetFlag(FLAG_N);
 
-			_registers.A += getFlag(FLAG_C) + _registers.H;
+			_registers.A += flagC + _registers.H;
 
 			if (_registers.A == 0x00)
 				setFlag(FLAG_Z);
@@ -2303,19 +2374,48 @@ void Cpu::emulateCycle()
 		} break;
 		case 0x8D: // ADC A, L
 		{
-			if (0x0F - (_registers.A & 0x0F) <= getFlag(FLAG_C) + (_registers.L & 0x0F))
+			byte flagC = getFlag(FLAG_C);
+
+			if (0x0F - (_registers.A & 0x0F) < flagC + (_registers.L & 0x0F))
 				setFlag(FLAG_H);
 			else
 				resetFlag(FLAG_H);
 
-			if (0xFF - _registers.A <= getFlag(FLAG_C) + _registers.L)
+			if (0xFF - _registers.A < flagC + _registers.L)
 				setFlag(FLAG_C);
 			else
 				resetFlag(FLAG_C);
 
 			resetFlag(FLAG_N);
 
-			_registers.A += getFlag(FLAG_C) + _registers.L;
+			_registers.A += flagC + _registers.L;
+
+			if (_registers.A == 0x00)
+				setFlag(FLAG_Z);
+			else
+				resetFlag(FLAG_Z);
+
+			_registers.M = 1;
+			_registers.T = 4;
+		} break;
+		case 0x8E: // ADC A, (HL)
+		{
+			byte flagC = getFlag(FLAG_C);
+			byte val = _memory.readByte((_registers.H << 8) + _registers.L);
+
+			if (0x0F - (_registers.A & 0x0F) < flagC + (val & 0x0F))
+				setFlag(FLAG_H);
+			else
+				resetFlag(FLAG_H);
+
+			if (0xFF - _registers.A < flagC + val)
+				setFlag(FLAG_C);
+			else
+				resetFlag(FLAG_C);
+
+			resetFlag(FLAG_N);
+
+			_registers.A += flagC + val;
 
 			if (_registers.A == 0x00)
 				setFlag(FLAG_Z);
@@ -2833,7 +2933,7 @@ void Cpu::emulateCycle()
 				if (isFlagSet(FLAG_C) || s > 0x9F) s += 0x60;
 			}
 
-			_registers.A = s;
+			_registers.A = (byte)s;
 			resetFlag(FLAG_H);
 			
 			if (_registers.A == 0x00) 
@@ -3401,6 +3501,62 @@ void Cpu::emulateCycle()
 					_registers.M = 4;
 					_registers.T = 16;
 				} break;
+				case 0x8E: // RES 1, (HL)
+				{
+					byte val = _memory.readByte((_registers.H << 8) + _registers.L);
+					val &= ~0x2;
+					_memory.writeByte((_registers.H << 8) + _registers.L, val);
+					_registers.M = 4;
+					_registers.T = 16;
+				} break;
+				case 0x96: // RES 2, (HL)
+				{
+					byte val = _memory.readByte((_registers.H << 8) + _registers.L);
+					val &= ~0x4;
+					_memory.writeByte((_registers.H << 8) + _registers.L, val);
+					_registers.M = 4;
+					_registers.T = 16;
+				} break;
+				case 0x9E: // RES 3, (HL)
+				{
+					byte val = _memory.readByte((_registers.H << 8) + _registers.L);
+					val &= ~0x8;
+					_memory.writeByte((_registers.H << 8) + _registers.L, val);
+					_registers.M = 4;
+					_registers.T = 16;
+				} break;
+				case 0xA6: // RES 4, (HL)
+				{
+					byte val = _memory.readByte((_registers.H << 8) + _registers.L);
+					val &= ~0x10;
+					_memory.writeByte((_registers.H << 8) + _registers.L, val);
+					_registers.M = 4;
+					_registers.T = 16;
+				} break;
+				case 0xAE: // RES 5, (HL)
+				{
+					byte val = _memory.readByte((_registers.H << 8) + _registers.L);
+					val &= ~0x20;
+					_memory.writeByte((_registers.H << 8) + _registers.L, val);
+					_registers.M = 4;
+					_registers.T = 16;
+				} break;
+				case 0xB6: // RES 6, (HL)
+				{
+					byte val = _memory.readByte((_registers.H << 8) + _registers.L);
+					val &= ~0x40;
+					_memory.writeByte((_registers.H << 8) + _registers.L, val);
+					_registers.M = 4;
+					_registers.T = 16;
+				} break;
+				case 0xBE: // RES 7, (HL)
+				{
+					byte val = _memory.readByte((_registers.H << 8) + _registers.L);
+					val &= ~0x80;
+					_memory.writeByte((_registers.H << 8) + _registers.L, val);
+					_registers.M = 4;
+					_registers.T = 16;
+				} break;
 				case 0x11: // RL C
 				{
 					byte prevCarry = getFlag(FLAG_C);
@@ -3430,6 +3586,62 @@ void Cpu::emulateCycle()
 				} break;
 				
 				// Sets
+				case 0xC6: // SET 0, (HL)
+				{
+					byte nextByte = _memory.readByte((_registers.H << 8) + _registers.L);
+					nextByte |= 0x01;
+					_memory.writeByte((_registers.H << 8) + _registers.L, nextByte);
+					_registers.M = 1;
+					_registers.T = 4;
+				} break;
+				case 0xCE: // SET 1, (HL)
+				{
+					byte nextByte = _memory.readByte((_registers.H << 8) + _registers.L);
+					nextByte |= 0x02;
+					_memory.writeByte((_registers.H << 8) + _registers.L, nextByte);
+					_registers.M = 1;
+					_registers.T = 4;
+				} break;
+				case 0xD6: // SET 2, (HL)
+				{
+					byte nextByte = _memory.readByte((_registers.H << 8) + _registers.L);
+					nextByte |= 0x04;
+					_memory.writeByte((_registers.H << 8) + _registers.L, nextByte);
+					_registers.M = 1;
+					_registers.T = 4;
+				} break;
+				case 0xDE: // SET 3, (HL)
+				{
+					byte nextByte = _memory.readByte((_registers.H << 8) + _registers.L);
+					nextByte |= 0x08;
+					_memory.writeByte((_registers.H << 8) + _registers.L, nextByte);
+					_registers.M = 1;
+					_registers.T = 4;
+				} break;
+				case 0xE6: // SET 4, (HL)
+				{
+					byte nextByte = _memory.readByte((_registers.H << 8) + _registers.L);
+					nextByte |= 0x10;
+					_memory.writeByte((_registers.H << 8) + _registers.L, nextByte);
+					_registers.M = 1;
+					_registers.T = 4;
+				} break;
+				case 0xEE: // SET 5, (HL)
+				{
+					byte nextByte = _memory.readByte((_registers.H << 8) + _registers.L);
+					nextByte |= 0x20;
+					_memory.writeByte((_registers.H << 8) + _registers.L, nextByte);
+					_registers.M = 1;
+					_registers.T = 4;
+				} break;
+				case 0xF6: // SET 6, (HL)
+				{
+					byte nextByte = _memory.readByte((_registers.H << 8) + _registers.L);
+					nextByte |= 0x40;
+					_memory.writeByte((_registers.H << 8) + _registers.L, nextByte);
+					_registers.M = 1;
+					_registers.T = 4;
+				} break;				
 				case 0xFE: // SET 7,(HL)
 				{
 					byte nextByte = _memory.readByte((_registers.H << 8) + _registers.L);

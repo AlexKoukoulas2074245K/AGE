@@ -56,13 +56,13 @@ void Input::keyUp(const int key)
 {
 	switch (key)
 	{
-		case SDLK_LEFT:      _keys[1] |= 0xD; *_intFlag |= Memory::INTERRUPT_FLAG_JOYPAD; break;
-		case SDLK_RIGHT:     _keys[1] |= 0xE; *_intFlag |= Memory::INTERRUPT_FLAG_JOYPAD; break;
-		case SDLK_UP:        _keys[1] |= 0xB; *_intFlag |= Memory::INTERRUPT_FLAG_JOYPAD; break;
-		case SDLK_DOWN:      _keys[1] |= 0x7; *_intFlag |= Memory::INTERRUPT_FLAG_JOYPAD; break;
-		case SDLK_x:         _keys[0] |= 0xD; *_intFlag |= Memory::INTERRUPT_FLAG_JOYPAD; break;
-		case SDLK_z:         _keys[0] |= 0xE; *_intFlag |= Memory::INTERRUPT_FLAG_JOYPAD; break;
-		case SDLK_RETURN:    _keys[0] |= 0x7; *_intFlag |= Memory::INTERRUPT_FLAG_JOYPAD; break;
-		case SDLK_BACKSPACE: _keys[0] |= 0xB; *_intFlag |= Memory::INTERRUPT_FLAG_JOYPAD; break;
+		case SDLK_LEFT:      _keys[1] |= 0x2; *_intFlag |= Memory::INTERRUPT_FLAG_JOYPAD; break;
+		case SDLK_RIGHT:     _keys[1] |= 0x1; *_intFlag |= Memory::INTERRUPT_FLAG_JOYPAD; break;
+		case SDLK_UP:        _keys[1] |= 0x4; *_intFlag |= Memory::INTERRUPT_FLAG_JOYPAD; break;
+		case SDLK_DOWN:      _keys[1] |= 0x8; *_intFlag |= Memory::INTERRUPT_FLAG_JOYPAD; break;
+		case SDLK_x:         _keys[0] |= 0x2; *_intFlag |= Memory::INTERRUPT_FLAG_JOYPAD; break;
+		case SDLK_z:         _keys[0] |= 0x1; *_intFlag |= Memory::INTERRUPT_FLAG_JOYPAD; break;
+		case SDLK_RETURN:    _keys[0] |= 0x8; *_intFlag |= Memory::INTERRUPT_FLAG_JOYPAD; break;
+		case SDLK_BACKSPACE: _keys[0] |= 0x4; *_intFlag |= Memory::INTERRUPT_FLAG_JOYPAD; break;
 	}
 }

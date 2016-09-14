@@ -91,7 +91,7 @@ byte Memory::readByte(const word addr)
 		// WRAM (8k)
 		case 0xC000:
 		case 0xD000:
-		{
+		{			
 			return _wram[addr & 0x1FFF];
 		} break;
 
@@ -118,7 +118,7 @@ byte Memory::readByte(const word addr)
 							return _inputRef.readByte(addr);
 						else if (addr == 0xFF01 || addr == 0xFF02)
 						{
-							std::cout << "At: 0x" << std::hex << *_pcref << " unimplemented serial transfer read " << std::hex << addr << " reading from iom instead" << std::endl;
+							//std::cout << "At: 0x" << std::hex << *_pcref << " unimplemented serial transfer read " << std::hex << addr << " reading from iom instead" << std::endl;
 							return _iomem[addr & 0x7F];
 						}
 						else if (addr == 0xFF04)
@@ -127,7 +127,7 @@ byte Memory::readByte(const word addr)
 						}
 						else if (addr == 0xFF05 || addr == 0xFF06 || addr == 0xFF07)
 						{
-							std::cout << "At: 0x" << std::hex << *_pcref << " unimplemented timer register read " << std::hex << addr << " reading from iom instead" << std::endl;
+							//std::cout << "At: 0x" << std::hex << *_pcref << " unimplemented timer register read " << std::hex << addr << " reading from iom instead" << std::endl;
 							return _iomem[addr & 0x7F];
 						}
 						else if (addr == 0xFF0F)
@@ -140,8 +140,7 @@ byte Memory::readByte(const word addr)
 						else
 							return _displayRef.readByte(addr); 
 					} break;
-					default:
-						std::cout << "At: 0x" << std::hex << *_pcref << " unhandled read from: 0x" << std::hex << addr <<  " (from iom) " << std::endl;
+					default:						
 						return _iomem[addr & 0x7F];
 				}
 				return 0;
@@ -218,7 +217,7 @@ void Memory::writeByte(const word addr, const byte val)
 				byte color = ((_vram[baseAddress] & bitIndex) != 0 ? 1 : 0) +
 					         ((_vram[baseAddress + 1] & bitIndex) != 0 ? 2 : 0);
 
-				_displayRef.updateTile(tile, x, y, color);
+				_displayRef.changeTileData(tile, x, y, color);
 			}
 			
 		} break;
@@ -234,6 +233,10 @@ void Memory::writeByte(const word addr, const byte val)
 		case 0xC000:
 		case 0xD000:
 		{
+			if (val == 0x1F)
+			{
+				const auto b = false;
+			}
 			_wram[addr & 0x1FFF] = val;
 		} break;
 
@@ -267,8 +270,7 @@ void Memory::writeByte(const word addr, const byte val)
 							_iomem[addr & 0x7F] = val;
 						}
 						else if (addr == 0xFF04)
-						{
-							std::cout << "At: 0x" << std::hex << *_pcref << " unimplemented divider register write " << std::hex << addr << " dumping to iom instead" << std::endl;
+						{							
 							_iomem[addr & 0x7F] = val;
 						}
 						else if (addr == 0xFF05 || addr == 0xFF06 || addr == 0xFF07)
@@ -287,7 +289,7 @@ void Memory::writeByte(const word addr, const byte val)
 							for (byte i = 0; i < 160; ++i)
 							{
 								byte nextByte = readByte((val << 8) + i);
-								_oam[i] = nextByte;
+								_oam[i] = nextByte;								
 								_displayRef.changeSpriteData(i, nextByte);
 							}
 						else
@@ -295,7 +297,7 @@ void Memory::writeByte(const word addr, const byte val)
 					} break;
 
 					default:
-						std::cout << "At: 0x" << std::hex << *_pcref << " unhandled write to: 0x" << std::hex << addr << " dumping to iom" << std::endl;
+						//std::cout << "At: 0x" << std::hex << *_pcref << " unhandled write to: 0x" << std::hex << addr << " dumping to iom" << std::endl;
 						_iomem[addr & 0x7F] = val;
 				}				
 			}

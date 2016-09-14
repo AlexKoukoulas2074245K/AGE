@@ -5,22 +5,27 @@
 #include "display.h"
 #include "cpu.h"
 #include "input.h"
+#include "window.h"
 
 #include <iostream>
 #include <fstream>
 #include <vector>
 #include <cstring>
 #include <SDL.h>
-// 2800
-// 371
-#define CURR_ADDRESS_TO_BREAK 0x02800
+
+#include <memory>
+
+#define CURR_ADDRESS_TO_BREAK 0x2B6A
 
 static const char* DEBUG_FLAG = "-d";
 
-static SDL_Window*   sdlWindow;
-static SDL_Renderer* sdlRenderer;
-static SDL_Surface*  sdlDisplaySurface;
-static SDL_Texture*  sdlDisplayTexture;
+static SDL_Surface*  mainViewSurface;
+static SDL_Surface*  tileViewSurface;
+static SDL_Surface*  spriteViewSurface;
+
+static std::unique_ptr<Window> tileView;
+static std::unique_ptr<Window> spriteView;
+static std::unique_ptr<Window> mainView;
 
 void loadRom(const char* const arg, Memory& memory)
 {
@@ -38,27 +43,59 @@ void loadRom(const char* const arg, Memory& memory)
 	}
 }
 
-void fillDisplay(byte* gfxData)
+void fillDisplay(byte* gfxData, byte* tileGfx, byte* spriteGfx)
 {
-	SDL_SetRenderDrawColor(sdlRenderer, 248, 248, 248, 255);
-	SDL_RenderClear(sdlRenderer);
-	SDL_FreeSurface(sdlDisplaySurface);
-
-	sdlDisplaySurface = SDL_CreateRGBSurfaceFrom(
+	// Fill graphics and render main view
+	SDL_FreeSurface(mainViewSurface);
+	mainViewSurface = SDL_CreateRGBSurfaceFrom(
 		static_cast<void*>(gfxData),
 		160, 144,
 		8 * Display::DISPLAY_DEPTH,
-		Display::DISPLAY_COLS * 4,
+		Display::DISPLAY_COLS * Display::DISPLAY_DEPTH,
 		0x000000FF,
 		0x0000FF00,
 		0x00FF0000,
 		0xFF000000
 	);
 	
-	SDL_DestroyTexture(sdlDisplayTexture);
-	sdlDisplayTexture = SDL_CreateTextureFromSurface(sdlRenderer, sdlDisplaySurface);
-	SDL_RenderCopy(sdlRenderer, sdlDisplayTexture, nullptr, nullptr);
-	SDL_RenderPresent(sdlRenderer);
+	mainView->setTextureFromSurface(mainViewSurface);
+	mainView->render();
+
+	// Fill graphics and render tile view
+	if (tileView)
+	{
+		SDL_FreeSurface(tileViewSurface);
+		tileViewSurface = SDL_CreateRGBSurfaceFrom(
+			static_cast<void*>(tileGfx),
+			Display::DISPLAY_TILE_VIEW_BASE_WIDTH, Display::DISPLAY_TILE_VIEW_BASE_HEIGHT,
+			8 * Display::DISPLAY_DEPTH,
+			Display::DISPLAY_TILE_VIEW_BASE_WIDTH * Display::DISPLAY_DEPTH,
+			0x000000FF,
+			0x0000FF00,
+			0x00FF0000,
+			0xFF000000);
+
+		tileView->setTextureFromSurface(tileViewSurface);
+		tileView->render();
+	}
+	
+	// Fill graphics and render sprite view
+	if (spriteView)
+	{
+		SDL_FreeSurface(spriteViewSurface);
+		spriteViewSurface = SDL_CreateRGBSurfaceFrom(
+			static_cast<void*>(spriteGfx),
+			Display::DISPLAY_SPRITE_VIEW_BASE_WIDTH, Display::DISPLAY_SPRITE_VIEW_BASE_HEIGHT,
+			8 * Display::DISPLAY_DEPTH,
+			Display::DISPLAY_SPRITE_VIEW_BASE_WIDTH * Display::DISPLAY_DEPTH,
+			0x000000FF,
+			0x0000FF00,
+			0x00FF0000,
+			0xFF000000);
+
+		spriteView->setTextureFromSurface(spriteViewSurface);
+		spriteView->render();
+	}
 }
 
 int main(int argc, char* argv[])
@@ -79,6 +116,19 @@ int main(int argc, char* argv[])
 		}
 	}
 
+
+	// Initialize SDL
+	// TODO: Handle Errors
+	SDL_Init(SDL_INIT_EVERYTHING);
+
+	mainView   = std::make_unique<Window>(Display::DISPLAY_COLS * 4, Display::DISPLAY_ROWS * 4, 894, 30, "A.G.E");
+
+	if (debugFlag)
+	{
+		tileView   = std::make_unique<Window>(Display::DISPLAY_TILE_VIEW_BASE_WIDTH * 2, Display::DISPLAY_TILE_VIEW_BASE_HEIGHT* 2, 638, 30, "Tile View");
+		spriteView = std::make_unique<Window>(Display::DISPLAY_SPRITE_VIEW_BASE_WIDTH * 8,  Display::DISPLAY_SPRITE_VIEW_BASE_HEIGHT * 8, 382, 445, "Sprite View");
+	}
+	
 	// Initialize Core Systems
 	Input input;
 	Display display(fillDisplay);
@@ -90,21 +140,6 @@ int main(int argc, char* argv[])
 	display.setZ80TimeRegister(cpu.getT());
 	input.setIFRef(memory.getIFPtr());
 
-	// Initialize SDL
-	// TODO: Handle Errors
-	SDL_Init(SDL_INIT_EVERYTHING);
-	sdlWindow = SDL_CreateWindow(
-		"A.G.E",
-		SDL_WINDOWPOS_CENTERED,
-		SDL_WINDOWPOS_CENTERED,
-		Display::DISPLAY_COLS * 4,
-		Display::DISPLAY_ROWS * 4,
-		0);
-
-	sdlRenderer = SDL_CreateRenderer(sdlWindow, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
-	SDL_SetRenderDrawColor(sdlRenderer, 0, 0, 0, 255);
-	
-
 	// Load Rom
 	loadRom(argv[1], memory);
 	
@@ -113,6 +148,7 @@ int main(int argc, char* argv[])
 	bool shouldPrint = false;
 	bool spacePressed = false;
 	bool spacePressed0 = false;
+	
 	int i = 0;
 	while(running)
 	{
@@ -121,11 +157,21 @@ int main(int argc, char* argv[])
 			switch (sdlEvent.type)
 			{
 				case SDL_QUIT: running = false; break;
+				case SDL_WINDOWEVENT: 
+				{
+					if (mainView)
+						mainView->handleEvent(sdlEvent);
+					if (tileView)
+						tileView->handleEvent(sdlEvent);
+					if (spriteView)
+						spriteView->handleEvent(sdlEvent);
+				} break;
 				case SDL_KEYDOWN:
 				{
 					switch (sdlEvent.key.keysym.sym)
 					{
 						case SDLK_SPACE: spacePressed = true; break;
+						case SDLK_ESCAPE: running = false; break;
 						default: input.keyDown(sdlEvent.key.keysym.sym);
 					}
 					
@@ -138,13 +184,21 @@ int main(int argc, char* argv[])
 						default: input.keyUp(sdlEvent.key.keysym.sym);
 					}
 				} break;
+
+				case SDL_MOUSEBUTTONDOWN:
+				{
+					if (sdlEvent.window.windowID == spriteView->getID())
+					{
+						display.printSpriteData(sdlEvent.button.x, sdlEvent.button.y);
+					}
+				} break;
 			}
 		}
 		
 		if (*cpu.getPC() == CURR_ADDRESS_TO_BREAK &&
 			(*cpu.getPC() < 0x0095 || *cpu.getPC() > 0x0343))
 		{			
-			i++;
+			shouldPrint = true;
 		}
 		if (i == 2 && *cpu.getPC() == 0x0463)
 		{
@@ -159,7 +213,7 @@ int main(int argc, char* argv[])
 
 		cpu.emulateCycle();
 		display.emulateGameboyDisplay();
-		
+	
 		if (cpu.getIME() && memory.getIE() && memory.getIF())
 		{
 			byte maskedInterrupts = memory.getIE() & memory.getIF();
@@ -197,10 +251,17 @@ int main(int argc, char* argv[])
 #endif
 
 		spacePressed0 = spacePressed;
+
+		if (mainView && mainView->isDestroyed())
+		{
+			mainView = nullptr;
+			running  = false;
+		}
+		if (tileView && tileView->isDestroyed()) 
+			tileView = nullptr;
+		if (spriteView && spriteView->isDestroyed()) 
+			spriteView = nullptr;
 	}
-	
-	SDL_DestroyRenderer(sdlRenderer);
-	SDL_DestroyWindow(sdlWindow);
 
 	return 0;
 }
