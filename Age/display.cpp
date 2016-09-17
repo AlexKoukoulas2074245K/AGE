@@ -31,6 +31,11 @@ static const byte SPRITE_FLAG_X_FLIP  = 0x20;
 static const byte SPRITE_FLAG_Y_FLIP  = 0x40;
 static const byte SPRITE_FLAG_PRIO    = 0x80;
 
+static const dword COLOR_0 = 0x00D0F8E0;
+static const dword COLOR_1 = 0xFF70C088;
+static const dword COLOR_2 = 0xFF566834;
+static const dword COLOR_3 = 0xFF201808;
+
 Display::Display(fill_displays_callback_t fillDisplayCallback)
 
 	: _displayMode(DISPLAY_MODE_HBLANK)
@@ -75,10 +80,10 @@ void Display::writeByte(const word addr, const byte val)
 			{
 				switch ((val >> (i * 2)) & 3)
 				{
-					case 0: _bkgPalette[i] = { 0xF8, 0xF8, 0xF8, 0x00 }; break;
-					case 1: _bkgPalette[i] = { 0xA8, 0xA8, 0xA8, 0xFF }; break;
-					case 2: _bkgPalette[i] = { 0x60, 0x60, 0x60, 0xFF }; break;
-					case 3: _bkgPalette[i] = { 0x00, 0x00, 0x00, 0xFF }; break;
+					case 0: _bkgPalette[i] = COLOR_0; break;
+					case 1: _bkgPalette[i] = COLOR_1; break;
+					case 2: _bkgPalette[i] = COLOR_2; break;
+					case 3: _bkgPalette[i] = COLOR_3; break;
 				}
 			}
 #endif
@@ -91,10 +96,10 @@ void Display::writeByte(const word addr, const byte val)
 			{
 				switch ((val >> (i * 2)) & 3)
 				{
-					case 0: _spr0Palette[i] = { 0xF8, 0xF8, 0xF8, 0x00 }; break;
-					case 1: _spr0Palette[i] = { 0xA8, 0xA8, 0xA8, 0xFF }; break;
-					case 2: _spr0Palette[i] = { 0x60, 0x60, 0x60, 0xFF }; break;
-					case 3: _spr0Palette[i] = { 0x00, 0x00, 0x00, 0xFF }; break;
+					case 0: _spr0Palette[i] = COLOR_0; break;
+					case 1: _spr0Palette[i] = COLOR_1; break;
+					case 2: _spr0Palette[i] = COLOR_2; break;
+					case 3: _spr0Palette[i] = COLOR_3; break;
 				}
 			}
 #endif
@@ -107,10 +112,10 @@ void Display::writeByte(const word addr, const byte val)
 			{
 				switch ((val >> (i * 2)) & 3)
 				{
-					case 0: _spr1Palette[i] = { 0xF8, 0xF8, 0xF8, 0x00 }; break;
-					case 1: _spr1Palette[i] = { 0xA8, 0xA8, 0xA8, 0xFF }; break;
-					case 2: _spr1Palette[i] = { 0x60, 0x60, 0x60, 0xFF }; break;
-					case 3: _spr1Palette[i] = { 0x00, 0x00, 0x00, 0xFF }; break;
+					case 0: _spr1Palette[i] = COLOR_0; break;
+					case 1: _spr1Palette[i] = COLOR_1; break;
+					case 2: _spr1Palette[i] = COLOR_2; break;
+					case 3: _spr1Palette[i] = COLOR_3; break;
 				}
 			}
 #endif
@@ -129,20 +134,21 @@ void Display::resetDisplay()
 	memset(_tileGfx, 0x00, sizeof(_tileGfx));
 	memset(_spriteGfx, 0x00, sizeof(_spriteGfx));
 
-	_bkgPalette[0] = { 0xF8, 0xF8, 0xF8, 0x00 };
-	_bkgPalette[1] = { 0xA8, 0xA8, 0xA8, 0xFF };
-	_bkgPalette[2] = { 0x60, 0x60, 0x60, 0xFF };
-	_bkgPalette[3] = { 0x00, 0x00, 0x00, 0xFF };
+	_bkgPalette[0] = COLOR_0;
+	_bkgPalette[1] = COLOR_1;
+	_bkgPalette[2] = COLOR_2;
+	_bkgPalette[3] = COLOR_3;
 
-	_spr0Palette[0] = { 0xF8, 0xF8, 0xF8, 0x00 };
-	_spr0Palette[1] = { 0xA8, 0xA8, 0xA8, 0xFF };
-	_spr0Palette[2] = { 0x60, 0x60, 0x60, 0xFF };
-	_spr0Palette[3] = { 0x00, 0x00, 0x00, 0xFF };
+	_spr0Palette[0] = COLOR_0;
+	_spr0Palette[1] = COLOR_1;
+	_spr0Palette[2] = COLOR_2;
+	_spr0Palette[3] = COLOR_3;
 
-	_spr1Palette[0] = { 0xF8, 0xF8, 0xF8, 0x00 };
-	_spr1Palette[1] = { 0xA8, 0xA8, 0xA8, 0xFF };
-	_spr1Palette[2] = { 0x60, 0x60, 0x60, 0xFF };
-	_spr1Palette[3] = { 0x00, 0x00, 0x00, 0xFF };
+	_spr1Palette[0] = COLOR_0;
+	_spr1Palette[1] = COLOR_1;
+	_spr1Palette[2] = COLOR_2;
+	_spr1Palette[3] = COLOR_3;
+
 
 	for (byte i = 0; i < 40; ++i)
 	{
@@ -181,7 +187,7 @@ void Display::emulateGameboyDisplay()
 				_displayClock = 0;
 				++_displayLine;
 
-				if (_displayLine == DISPLAY_ROWS)
+				if (_displayLine == DISPLAY_ROWS - 1)
 				{
 					_displayMode = DISPLAY_MODE_VBLANK;
 					fillTileViewGfx();
@@ -243,16 +249,10 @@ void Display::changeSpriteData(const word addr, const byte val)
 	switch (addr & 3)
 	{
 		// Y-coord
-		case 0: 
-		{
-			_spriteData[spriteIndex].y = val - 16; 
-		} break;
+		case 0: _spriteData[spriteIndex].y = val - 16; break;
 
 		// X-coord
-		case 1: 
-		{
-			_spriteData[spriteIndex].x = val - 8;
-		} break;
+		case 1: _spriteData[spriteIndex].x = val - 8; break;
 		// Tile num
 		case 2: _spriteData[spriteIndex].tile = val; break;
 
@@ -298,12 +298,12 @@ void Display::renderScanline()
 		for (size_t i = 0; i < DISPLAY_COLS; ++i)
 		{
 			byte col = (_tileset[tileIndex][y][x] & 0x3);
-			pixel_t emulatedColor = _bkgPalette[col];
+			dword emucol = _bkgPalette[col];
 
-			_gfx[displayOffset]     = emulatedColor.r;
-			_gfx[displayOffset + 1] = emulatedColor.g;
-			_gfx[displayOffset + 2] = emulatedColor.b;
-			_gfx[displayOffset + 3] = emulatedColor.a;
+			_gfx[displayOffset]     = (emucol & 0x000000FF) >> 0;
+			_gfx[displayOffset + 1] = (emucol & 0x0000FF00) >> 8;
+			_gfx[displayOffset + 2] = (emucol & 0x00FF0000) >> 16;
+			_gfx[displayOffset + 3] = (emucol & 0xFF000000) >> 24;
 			displayOffset += 4;
 			
 			scanRow[i] = _tileset[tileIndex][y][x];
@@ -329,7 +329,7 @@ void Display::renderScanline()
 			// Check if the sprite falls on this scanline
 			if (sy <= _displayLine && (sy + 8) > _displayLine)
 			{
-				pixel_t* spritePalette = isSpriteFlagSet(i, SPRITE_FLAG_PALETTE) ? _spr1Palette : _spr0Palette;
+				dword* spritePalette = isSpriteFlagSet(i, SPRITE_FLAG_PALETTE) ? _spr1Palette : _spr0Palette;
 				spritePalette = _bkgPalette;
 				int displayOffset = (_displayLine * 160 + sx) * 4;
 
@@ -346,20 +346,21 @@ void Display::renderScanline()
 					// its not transparent (color 0) &&
 					// (if the sprite has prio || shows under bg)
 					// then render it
-					if ((sx + x) >= 0 && (sx + x) < 160 && (!isSpriteFlagSet(i, SPRITE_FLAG_PRIO) || scanRow[sx + x] == 0))
+					// TODO: fix prio
+					if ((sx + x) >= 0 && (sx + x) < 160 && (true || scanRow[sx + x] == 0))
 					{
 						// If X flip is set reverse pixel write						
-						pixel_t color;
+						dword emucol = 0;
 						if (!isSpriteFlagSet(i, SPRITE_FLAG_X_FLIP))
-							color = spritePalette[tileRow[x]];
+							emucol = spritePalette[tileRow[x]];
 						else
-							color = spritePalette[tileRow[7 - x]];
+							emucol = spritePalette[tileRow[7 - x]];
 						
 
-						_gfx[displayOffset]     = color.r;
-						_gfx[displayOffset + 1] = color.g;
-						_gfx[displayOffset + 2] = color.b;
-						_gfx[displayOffset + 3] = color.a;
+						_gfx[displayOffset]     = (emucol & 0x000000FF) >> 0;
+						_gfx[displayOffset + 1] = (emucol & 0x0000FF00) >> 8;
+						_gfx[displayOffset + 2] = (emucol & 0x00FF0000) >> 16;
+						_gfx[displayOffset + 3] = (emucol & 0xFF000000) >> 24;
 
 						displayOffset += 4;
 					}
@@ -388,7 +389,7 @@ void Display::fillTileViewGfx()
 
 			int arrayIndex = (y * DISPLAY_TILE_VIEW_BASE_WIDTH * DISPLAY_DEPTH) + x * DISPLAY_DEPTH;
 			byte color = (_tileset[tileIndex][y][x] & 0x03);
-			pixel_t emulatedColor = _bkgPalette[_tileset[tileIndex][y % DISPLAY_TILE_ROWS][x % DISPLAY_TILE_COLS]];
+			dword emucol = _bkgPalette[_tileset[tileIndex][y % DISPLAY_TILE_ROWS][x % DISPLAY_TILE_COLS]];
 	
 #ifdef SHOW_SELECTED_TILES
 			if ((emulatedColor.r == 0xF8 ||
@@ -399,10 +400,10 @@ void Display::fillTileViewGfx()
 			}
 #endif
 
-			_tileGfx[arrayIndex]     = emulatedColor.r;
-			_tileGfx[arrayIndex + 1] = emulatedColor.g;
-			_tileGfx[arrayIndex + 2] = emulatedColor.b;
-			_tileGfx[arrayIndex + 3] = emulatedColor.a;
+			_tileGfx[arrayIndex]     = (emucol & 0x000000FF) >> 0;
+			_tileGfx[arrayIndex + 1] = (emucol & 0x0000FF00) >> 8;
+			_tileGfx[arrayIndex + 2] = (emucol & 0x00FF0000) >> 16;
+			_tileGfx[arrayIndex + 3] = (emucol & 0xFF000000) >> 24;
 		}
 	}
 }
@@ -420,12 +421,13 @@ void Display::fillSpriteViewGfx()
 		{
 			for (int x = 0; x < DISPLAY_TILE_COLS; ++x)
 			{
-				pixel_t* selPalette = isSpriteFlagSet(i, SPRITE_FLAG_PALETTE) ? _spr1Palette : _spr0Palette;
+				dword* selPalette = isSpriteFlagSet(i, SPRITE_FLAG_PALETTE) ? _spr1Palette : _spr0Palette;
+				dword emucol = selPalette[_tileset[spriteData.tile][y][x] & 0x3];
 
-				_spriteGfx[(yOffset + y) * DISPLAY_SPRITE_AREA * DISPLAY_DEPTH + (xOffset + x) * DISPLAY_DEPTH]     = selPalette[_tileset[spriteData.tile][y][x] & 0x3].r;
-				_spriteGfx[(yOffset + y) * DISPLAY_SPRITE_AREA * DISPLAY_DEPTH + (xOffset + x) * DISPLAY_DEPTH + 1] = selPalette[_tileset[spriteData.tile][y][x] & 0x3].g;
-				_spriteGfx[(yOffset + y) * DISPLAY_SPRITE_AREA * DISPLAY_DEPTH + (xOffset + x) * DISPLAY_DEPTH + 2] = selPalette[_tileset[spriteData.tile][y][x] & 0x3].b;
-				_spriteGfx[(yOffset + y) * DISPLAY_SPRITE_AREA * DISPLAY_DEPTH + (xOffset + x) * DISPLAY_DEPTH + 3] = selPalette[_tileset[spriteData.tile][y][x] & 0x3].a;
+				_spriteGfx[(yOffset + y) * DISPLAY_SPRITE_AREA * DISPLAY_DEPTH + (xOffset + x) * DISPLAY_DEPTH]     = (emucol & 0x000000FF) >> 0;
+				_spriteGfx[(yOffset + y) * DISPLAY_SPRITE_AREA * DISPLAY_DEPTH + (xOffset + x) * DISPLAY_DEPTH + 1] = (emucol & 0x0000FF00) >> 8;
+				_spriteGfx[(yOffset + y) * DISPLAY_SPRITE_AREA * DISPLAY_DEPTH + (xOffset + x) * DISPLAY_DEPTH + 2] = (emucol & 0x00FF0000) >> 16;
+				_spriteGfx[(yOffset + y) * DISPLAY_SPRITE_AREA * DISPLAY_DEPTH + (xOffset + x) * DISPLAY_DEPTH + 3] = (emucol & 0xFF000000) >> 24;
 			}
 		}
 
@@ -457,23 +459,4 @@ bool Display::isSpriteFlagSet(const byte spriteIndex, const byte flag) const
 void Display::setSpriteFlag(const byte spriteIndex, const byte flag)
 {
 	_spriteData[spriteIndex].flags |= flag;
-}
-
-void Display::setPixel(const byte x, const byte y, const pixel_t& pixel)
-{
-	_gfx[y * DISPLAY_COLS + x * DISPLAY_DEPTH]     = pixel.r;
-	_gfx[y * DISPLAY_COLS + x * DISPLAY_DEPTH + 1] = pixel.g;
-	_gfx[y * DISPLAY_COLS + x * DISPLAY_DEPTH + 2] = pixel.b;
-	_gfx[y * DISPLAY_COLS + x * DISPLAY_DEPTH + 3] = pixel.a;
-}
-
-Display::pixel_t Display::getPixel(const byte x, const byte y) const
-{
-	return 
-	{
-		_gfx[y * DISPLAY_COLS + x * DISPLAY_DEPTH],
-		_gfx[y * DISPLAY_COLS + x * DISPLAY_DEPTH + 1],
-		_gfx[y * DISPLAY_COLS + x * DISPLAY_DEPTH + 2],
-		_gfx[y * DISPLAY_COLS + x * DISPLAY_DEPTH + 3]
-	};
 }

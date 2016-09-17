@@ -175,8 +175,11 @@ void Memory::writeByte(const word addr, const byte val)
 				if (*_pcref >= 0x0100)
 					_inbios = 0;				
 			}
-
-			_rom[addr] = val;
+			else
+			{
+				const auto b = false;
+				_rom[addr] = val;
+			}
 		} break;
 
 		// ROM 0 (16k)
@@ -184,7 +187,8 @@ void Memory::writeByte(const word addr, const byte val)
 		case 0x2000:
 		case 0x3000:
 		{
-			_rom[addr] = val;
+			const auto b = false;
+			//_rom[addr] = val;
 		} break;
 
 		// ROM 1 (16k)

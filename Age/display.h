@@ -24,11 +24,6 @@ public:
 	static const word DISPLAY_SPRITE_VIEW_BASE_HEIGHT  = 40;
 	static const word DISPLAY_TILE_VIEW_TILES_PER_ROW = 16;
 
-	using pixel_t = struct pixel
-	{
-		byte r, g, b, a;
-	};
-
 	struct sprite_data
 	{
 		int x, y;
@@ -63,9 +58,7 @@ private:
 	void setControlFlag(const byte flag);
 	bool isSpriteFlagSet(const byte spriteIndex, const byte flag) const;
 	void setSpriteFlag(const byte spriteIndex, const byte flag);
-	void setPixel(const byte x, const byte y, const pixel_t& pixel);
-	pixel_t getPixel(const byte x, const byte y) const;
-
+	
 private:
 	enum display_mode
 	{
@@ -83,9 +76,9 @@ private:
 
 	sprite_data _spriteData[DISPLAY_SPRITES];
 	
-	pixel_t _bkgPalette[4];
-	pixel_t _spr0Palette[4];
-	pixel_t _spr1Palette[4];
+	dword _bkgPalette[4];
+	dword _spr0Palette[4];
+	dword _spr1Palette[4];
 
 	const timer_t* _z80Time;
 	byte*          _vramRef;

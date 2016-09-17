@@ -190,6 +190,15 @@ static const std::unordered_map<byte, std::string> s_instrDisassembly =
 	{ 0x8C, "ADC A, H" },
 	{ 0x8D, "ADC A, L" },
 	{ 0x8E, "ADC A, (HL)" },
+	{ 0x9F, "SBC A, A" },
+	{ 0x98, "SBC A, B" },
+	{ 0x99, "SBC A, C" },
+	{ 0x9A, "SBC A, D" },
+	{ 0x9B, "SBC A, E" },
+	{ 0x9C, "SBC A, H" },
+	{ 0x9D, "SBC A, L" },
+	{ 0x9E, "SBC A, (HL)" },
+	{ 0xDE, "SBC A, n" },
 
 	// 16-bit ALU
 	{ 0x03, "INC BC" },
@@ -255,6 +264,25 @@ static const std::unordered_map<byte, std::string> s_instrDisassembly =
 	{ 0x3F, "SCF" }
 };
 
+static const byte coreInstructionTicks[256] = {
+	2, 6, 4, 4, 2, 2, 4, 4, 10, 4, 4, 4, 2, 2, 4, 4, // 0x0
+	2, 6, 4, 4, 2, 2, 4, 4,  4, 4, 4, 4, 2, 2, 4, 4, // 0x1
+	0, 6, 4, 4, 2, 2, 4, 2,  0, 4, 4, 4, 2, 2, 4, 2, // 0x2
+	4, 6, 4, 4, 6, 6, 6, 2,  0, 4, 4, 4, 2, 2, 4, 2, // 0x3
+	2, 2, 2, 2, 2, 2, 4, 2,  2, 2, 2, 2, 2, 2, 4, 2, // 0x4
+	2, 2, 2, 2, 2, 2, 4, 2,  2, 2, 2, 2, 2, 2, 4, 2, // 0x5
+	2, 2, 2, 2, 2, 2, 4, 2,  2, 2, 2, 2, 2, 2, 4, 2, // 0x6
+	4, 4, 4, 4, 4, 4, 2, 4,  2, 2, 2, 2, 2, 2, 4, 2, // 0x7
+	2, 2, 2, 2, 2, 2, 4, 2,  2, 2, 2, 2, 2, 2, 4, 2, // 0x8
+	2, 2, 2, 2, 2, 2, 4, 2,  2, 2, 2, 2, 2, 2, 4, 2, // 0x9
+	2, 2, 2, 2, 2, 2, 4, 2,  2, 2, 2, 2, 2, 2, 4, 2, // 0xa
+	2, 2, 2, 2, 2, 2, 4, 2,  2, 2, 2, 2, 2, 2, 4, 2, // 0xb
+	0, 6, 0, 6, 0, 8, 4, 8,  0, 2, 0, 0, 0, 6, 4, 8, // 0xc
+	0, 6, 0, 0, 0, 8, 4, 8,  0, 8, 0, 0, 0, 0, 4, 8, // 0xd
+	6, 6, 4, 0, 0, 8, 4, 8,  8, 2, 8, 0, 0, 0, 4, 8, // 0xe
+	6, 6, 4, 2, 0, 8, 4, 8,  6, 4, 8, 2, 0, 0, 4, 8  // 0xf
+};
+
 static const std::unordered_map<byte, std::string> s_bitOpcodeDisassembly =
 {
 	// Bits
@@ -310,6 +338,14 @@ static const std::unordered_map<byte, std::string> s_bitOpcodeDisassembly =
 	{ 0x11, "RL C" },
 	
 	// Sets
+	{ 0xC0, "SET 0, B" },
+	{ 0xC8, "SET 1, B" },
+	{ 0xD0, "SET 2, B" },
+	{ 0xD8, "SET 3, B" },
+	{ 0xE0, "SET 4, B" },
+	{ 0xE8, "SET 5, B" },
+	{ 0xF0, "SET 6, B" },
+	{ 0xF8, "SET 7, B" },
 	{ 0xC6, "SET 0, (HL)" },
 	{ 0xCE, "SET 1, (HL)" },
 	{ 0xD6, "SET 2, (HL)" },
@@ -318,6 +354,7 @@ static const std::unordered_map<byte, std::string> s_bitOpcodeDisassembly =
 	{ 0xEE, "SET 5, (HL)" },
 	{ 0xF6, "SET 6, (HL)" },
 	{ 0xFE, "SET 7, (HL)" },
+	{ 0xDB, "SET 3, E" },
 	
 
 	// Shifts
@@ -346,6 +383,25 @@ static const std::unordered_map<byte, std::string> s_bitOpcodeDisassembly =
 	{ 0x35, "SWAP L" }
 };
 
+static const byte cbInstructionTicks[256] = {
+	8, 8, 8, 8, 8,  8, 16, 8,  8, 8, 8, 8, 8, 8, 16, 8, // 0x0
+	8, 8, 8, 8, 8,  8, 16, 8,  8, 8, 8, 8, 8, 8, 16, 8, // 0x1
+	8, 8, 8, 8, 8,  8, 16, 8,  8, 8, 8, 8, 8, 8, 16, 8, // 0x2
+	8, 8, 8, 8, 8,  8, 16, 8,  8, 8, 8, 8, 8, 8, 16, 8, // 0x3
+	8, 8, 8, 8, 8,  8, 12, 8,  8, 8, 8, 8, 8, 8, 12, 8, // 0x4
+	8, 8, 8, 8, 8,  8, 12, 8,  8, 8, 8, 8, 8, 8, 12, 8, // 0x5
+	8, 8, 8, 8, 8,  8, 12, 8,  8, 8, 8, 8, 8, 8, 12, 8, // 0x6
+	8, 8, 8, 8, 8,  8, 12, 8,  8, 8, 8, 8, 8, 8, 12, 8, // 0x7
+	8, 8, 8, 8, 8,  8, 12, 8,  8, 8, 8, 8, 8, 8, 12, 8, // 0x8
+	8, 8, 8, 8, 8,  8, 12, 8,  8, 8, 8, 8, 8, 8, 12, 8, // 0x9
+	8, 8, 8, 8, 8,  8, 12, 8,  8, 8, 8, 8, 8, 8, 12, 8, // 0xa
+	8, 8, 8, 8, 8,  8, 12, 8,  8, 8, 8, 8, 8, 8, 12, 8, // 0xb
+	8, 8, 8, 8, 8,  8, 12, 8,  8, 8, 8, 8, 8, 8, 12, 8, // 0xc
+	8, 8, 8, 8, 8,  8, 12, 8,  8, 8, 8, 8, 8, 8, 12, 8, // 0xd
+	8, 8, 8, 8, 8,  8, 12, 8,  8, 8, 8, 8, 8, 8, 12, 8, // 0xe
+	8, 8, 8, 8, 8,  8, 12, 8,  8, 8, 8, 8, 8, 8, 12, 8  // 0xf
+};
+
 Cpu::Cpu(Memory& memory)
 	: _memory(memory)
 	, _opcode(NO_OPCODE)
@@ -364,434 +420,434 @@ void Cpu::emulateCycle()
 		
 		case 0x00: // NOP
 		{
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 
 		// 8 Bit Loads
 		case 0x06: // LD B,n
 		{
 			_registers.B = _memory.readByte(_registers.pc++);
-			_registers.M = 2;
-			_registers.T = 8;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x0E: // LD C,n
 		{
 			_registers.C = _memory.readByte(_registers.pc++);
-			_registers.M = 2;
-			_registers.T = 8;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x16: // LD D,n
 		{
 			_registers.D = _memory.readByte(_registers.pc++);
-			_registers.M = 2;
-			_registers.T = 8;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x1E: // LD E,n
 		{
 			_registers.E = _memory.readByte(_registers.pc++);
-			_registers.M = 2;
-			_registers.T = 8;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x26: // LD H,n
 		{
 			_registers.H = _memory.readByte(_registers.pc++);
-			_registers.M = 2;
-			_registers.T = 8;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x2E: // LD L,n
 		{
 			_registers.L = _memory.readByte(_registers.pc++);
-			_registers.M = 2;
-			_registers.T = 8;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x7F: // LD A, A
 		{
 			_registers.A = _registers.A;
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x78: // LD A, B
 		{
 			_registers.A = _registers.B;
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x79: // LD A, C
 		{
 			_registers.A = _registers.C;
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x7A: // LD A, D
 		{
 			_registers.A = _registers.D;
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x7B: // LD A, E
 		{
 			_registers.A = _registers.E;
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x7C: //LD A, H
 		{
 			_registers.A = _registers.H;
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x7D: // LD A, L
 		{
 			_registers.A = _registers.L;
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0xF2: // LD A, (C)
 		{
 			_registers.A = _memory.readByte(0xFF00 + _registers.C);
-			_registers.M = 2;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x7E: // LD A, (HL)
 		{
 			_registers.A = _memory.readByte((_registers.H << 8) + _registers.L);
-			_registers.M = 2;
-			_registers.T = 8;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x0A: // LD A, (BC)
 		{
 			_registers.A = _memory.readByte((_registers.B << 8) + _registers.C);
-			_registers.M = 2;
-			_registers.T = 8;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x1A: // LD A, (DE)
 		{
 			_registers.A = _memory.readByte((_registers.D << 8) + _registers.E);
-			_registers.M = 2;
-			_registers.T = 8;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0xFA: // LD A, (nn)
 		{
 			word address = _memory.readWord(_registers.pc);
 			_registers.pc += 2;
 			_registers.A = _memory.readByte(address);
-			_registers.M = 4;
-			_registers.T = 16;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x47: // LD B, A
 		{
 			_registers.B = _registers.A;
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x40: // LD B, B
 		{
 			_registers.B = _registers.B;
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x41: // LD B, C
 		{
 			_registers.B = _registers.C;
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x42: // LD B, D
 		{
 			_registers.B = _registers.D;
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x43: // LD B, E
 		{
 			_registers.B = _registers.E;
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x44: // LD B, H
 		{
 			_registers.B = _registers.H;
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x45: // LD B, L
 		{
 			_registers.B = _registers.L;
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x46: // LD B, (HL)
 		{
 			_registers.B = _memory.readByte((_registers.H << 8) + _registers.L);
-			_registers.M = 2;
-			_registers.T = 8;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x4F: // LD C, A
 		{
 			_registers.C = _registers.A;
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x4E: // LD C, (HL)
 		{
 			_registers.C = _memory.readByte((_registers.H << 8) + _registers.L);
-			_registers.M = 2;
-			_registers.T = 8;
-		}
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
+		} break;
 		case 0x57: // LD D, A
 		{
 			_registers.D = _registers.A;
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x50: // LD D, B
 		{
 			_registers.D = _registers.B;
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x51: // LD D, C
 		{
 			_registers.D = _registers.C;
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x52: // LD D, D
 		{
 			_registers.D = _registers.D;
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x53: // LD D, E
 		{
 			_registers.D = _registers.E;
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x54: // LD D, H
 		{
 			_registers.D = _registers.H;
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x55: // LD D, L
 		{
 			_registers.D = _registers.L;
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x56: // LD D, (HL)
 		{
 			_registers.D = _memory.readByte((_registers.H << 8) + _registers.L);
-			_registers.M = 2;
-			_registers.T = 8;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x5F: // LD E, A
 		{
 			_registers.E = _registers.A;
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x58: // LD E, B
 		{
 			_registers.E = _registers.B;
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x59: // LD E, C
 		{
 			_registers.E = _registers.C;
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x5A: // LD E, D
 		{
 			_registers.E = _registers.D;
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x5B: // LD E, E
 		{
 			_registers.E = _registers.E;
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x5C: // LD E, H
 		{
 			_registers.E = _registers.H;
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x5D: // LD E, L
 		{
 			_registers.E = _registers.L;
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x5E: // LD E, (HL)
 		{
 			_registers.E = _memory.readByte((_registers.H << 8) + _registers.L);
-			_registers.M = 2;
-			_registers.T = 8;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x66: // LD H, (HL)
 		{
 			_registers.H = _memory.readByte((_registers.H << 8) + _registers.L);
-			_registers.M = 2;
-			_registers.T = 8;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x67: // LD H, A
 		{
 			_registers.H = _registers.A;
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x60: // LD H, B
 		{
 			_registers.H = _registers.B;
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x61: // LD H, C
 		{
 			_registers.H = _registers.C;
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x62: // LD H, D
 		{
 			_registers.H = _registers.D;
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x63: // LD H, E
 		{
 			_registers.H = _registers.E;
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x64: // LD H, H
 		{
 			_registers.H = _registers.H;
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x65: // LD H, L
 		{
 			_registers.H = _registers.L;
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x6F: // LD L, A
 		{
 			_registers.L = _registers.A;
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x68: // LD L, B
 		{
 			_registers.L = _registers.B;
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x69: // LD L, C
 		{
 			_registers.L = _registers.C;
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x6A: // LD L, D
 		{
 			_registers.L = _registers.D;
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x6B: // LD L, E
 		{
 			_registers.L = _registers.E;
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x6C: // LD L, H
 		{
 			_registers.L = _registers.H;
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x6D: // LD L, L"
 		{
 			_registers.L = _registers.L;
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x77: // LD (HL), A
 		{
 			_memory.writeByte(((_registers.H << 8) + _registers.L), _registers.A);
-			_registers.M = 2;
-			_registers.T = 8;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x70: // LD (HL), B
 		{
 			_memory.writeByte(((_registers.H << 8) + _registers.L), _registers.B);
-			_registers.M = 2;
-			_registers.T = 8;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x71: // LD (HL), C
 		{
 			_memory.writeByte(((_registers.H << 8) + _registers.L), _registers.C);
-			_registers.M = 2;
-			_registers.T = 8;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x72: // LD (HL), D
 		{
 			_memory.writeByte(((_registers.H << 8) + _registers.L), _registers.D);
-			_registers.M = 2;
-			_registers.T = 8;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x73: // LD (HL), E
 		{
 			_memory.writeByte(((_registers.H << 8) + _registers.L), _registers.E);
-			_registers.M = 2;
-			_registers.T = 8;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x74: // LD (HL), H
 		{
 			_memory.writeByte(((_registers.H << 8) + _registers.L), _registers.H);
-			_registers.M = 2;
-			_registers.T = 8;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x75: // LD (HL), L
 		{
 			_memory.writeByte(((_registers.H << 8) + _registers.L), _registers.L);
-			_registers.M = 2;
-			_registers.T = 8;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x3E: // LD A, #
 		{
 			_registers.A = _memory.readByte(_registers.pc++);
-			_registers.M = 2;
-			_registers.T = 8;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0xE0: // LDH (n), A
 		{
 			byte address = _memory.readByte(_registers.pc++);
 			_memory.writeByte(0xFF00 + address, _registers.A);
-			_registers.M = 3;
-			_registers.T = 12;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0xE2: // LD (C), A
 		{			
 			_memory.writeByte(0xFF00 + _registers.C, _registers.A);
-			_registers.M = 2;
-			_registers.T = 8;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0xF0: // LDH A,(n)
 		{
 			word address = _memory.readByte(_registers.pc++) + 0xFF00;
 			_registers.A = _memory.readByte(address);
-			_registers.M = 3;
-			_registers.T = 12;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x22: // LDI (HL), A
 		{
@@ -800,8 +856,8 @@ void Cpu::emulateCycle()
 				_registers.H++;
 			_registers.L++;
 			
-			_registers.M = 2;
-			_registers.T = 8;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x2A: // LDI A, (HL)
 		{
@@ -809,8 +865,8 @@ void Cpu::emulateCycle()
 			if (_registers.L == 0xFF)
 				_registers.H++;
 			_registers.L++;
-			_registers.M = 2;
-			_registers.T = 8;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x3A: // LDD A, (HL)
 		{
@@ -819,29 +875,29 @@ void Cpu::emulateCycle()
 			if (_registers.L == 0xFF)
 				_registers.H--;
 
-			_registers.M = 2;
-			_registers.T = 8;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x12: // LD (DE) A
 		{
 			_memory.writeByte((_registers.D << 8) + _registers.E, _registers.A);
-			_registers.M = 2;
-			_registers.T = 8;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0xEA: // LD (nn), A
 		{
 			word address = _memory.readWord(_registers.pc);
 			_registers.pc += 2;
 			_memory.writeByte(address, _registers.A);
-			_registers.M = 4;
-			_registers.T = 16;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x36: // LD (HL), n
 		{
 			byte nextByte = _memory.readByte(_registers.pc++);
 			_memory.writeByte((_registers.H << 8) + _registers.L, nextByte);
-			_registers.M = 3;
-			_registers.T = 12;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 
 		// 16 Bit Loads
@@ -850,36 +906,36 @@ void Cpu::emulateCycle()
 			word address = _memory.readWord(_registers.pc);
 			_registers.pc += 2;
 			_memory.writeWord(address, _registers.sp);
-			_registers.M = 5;
-			_registers.T = 20;			
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;			
 		} break;
 		case 0x01: // LD BC, nn
 		{
 			_registers.C = _memory.readByte(_registers.pc++);
 			_registers.B = _memory.readByte(_registers.pc++);
-			_registers.M = 3;
-			_registers.T = 12;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x11: // LD DE, nn
 		{
 			_registers.E = _memory.readByte(_registers.pc++);
 			_registers.D = _memory.readByte(_registers.pc++);
-			_registers.M = 3;
-			_registers.T = 12;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x21: // LD HL,nn
 		{
 			_registers.L = _memory.readByte(_registers.pc++);
 			_registers.H = _memory.readByte(_registers.pc++);
-			_registers.M = 3;
-			_registers.T = 12;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x31: // LD SP,nn
 		{
 			_registers.sp = _memory.readWord(_registers.pc);
 			_registers.pc += 2;
-			_registers.M = 3;
-			_registers.T = 12;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x32: // LDD (HL), A 
 		{
@@ -888,65 +944,65 @@ void Cpu::emulateCycle()
 			if (_registers.L == 0xFF)
 				_registers.H--;
 
-			_registers.M = 2;
-			_registers.T = 8;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0xF5: // PUSH AF
 		{
 			_memory.writeByte(--_registers.sp, _registers.A);
 			_memory.writeByte(--_registers.sp, _registers.F);
-			_registers.M = 4;
-			_registers.T = 16;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 
 		} break;
 		case 0xC5: // PUSH BC
 		{
 			_memory.writeByte(--_registers.sp, _registers.B);
 			_memory.writeByte(--_registers.sp, _registers.C);
-			_registers.M = 4;
-			_registers.T = 16;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0xD5: // PUSH DE
 		{
 			_memory.writeByte(--_registers.sp, _registers.D);
 			_memory.writeByte(--_registers.sp, _registers.E);
-			_registers.M = 4;
-			_registers.T = 16;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0xE5: // PUSH HL
 		{
 			_memory.writeByte(--_registers.sp, _registers.H);
 			_memory.writeByte(--_registers.sp, _registers.L);
-			_registers.M = 4;
-			_registers.T = 16;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0xF1: // POP AF
 		{
 			_registers.F = _memory.readByte(_registers.sp++);
 			_registers.A = _memory.readByte(_registers.sp++);
-			_registers.M = 3;
-			_registers.T = 12;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0xC1: // POP BC
 		{
 			_registers.C = _memory.readByte(_registers.sp++);
 			_registers.B = _memory.readByte(_registers.sp++);
-			_registers.M = 3;
-			_registers.T = 12;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0xD1: // POP DE
 		{
 			_registers.E = _memory.readByte(_registers.sp++);
 			_registers.D = _memory.readByte(_registers.sp++);
-			_registers.M = 3;
-			_registers.T = 12;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0xE1: // POP HL
 		{
 			_registers.L = _memory.readByte(_registers.sp++);
 			_registers.H = _memory.readByte(_registers.sp++);
-			_registers.M = 3;
-			_registers.T = 12;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 
 		// 8-bit ALU
@@ -965,8 +1021,8 @@ void Cpu::emulateCycle()
 			else
 				resetFlag(FLAG_Z);
 
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x04: // INC B
 		{
@@ -983,8 +1039,8 @@ void Cpu::emulateCycle()
 			else
 				resetFlag(FLAG_Z);
 
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x0C: // INC C
 		{
@@ -1001,8 +1057,8 @@ void Cpu::emulateCycle()
 			else
 				resetFlag(FLAG_Z);
 
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x14: // INC D
 		{
@@ -1019,8 +1075,8 @@ void Cpu::emulateCycle()
 			else
 				resetFlag(FLAG_Z);
 
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x1C: // INC E
 		{
@@ -1037,8 +1093,8 @@ void Cpu::emulateCycle()
 			else
 				resetFlag(FLAG_Z);
 
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x24: // INC H
 		{
@@ -1055,8 +1111,8 @@ void Cpu::emulateCycle()
 			else
 				resetFlag(FLAG_Z);
 
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x2C: // INC L
 		{
@@ -1073,8 +1129,8 @@ void Cpu::emulateCycle()
 			else
 				resetFlag(FLAG_Z);
 
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x34: // INC (HL)
 		{
@@ -1093,8 +1149,8 @@ void Cpu::emulateCycle()
 			else
 				resetFlag(FLAG_Z);
 
-			_registers.M = 3;
-			_registers.T = 12;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x3D: // DEC A
 		{
@@ -1111,8 +1167,8 @@ void Cpu::emulateCycle()
 
 			setFlag(FLAG_N);
 
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x05: // DEC B
 		{
@@ -1129,8 +1185,8 @@ void Cpu::emulateCycle()
 
 			setFlag(FLAG_N);
 
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x0D: // DEC C
 		{
@@ -1146,8 +1202,8 @@ void Cpu::emulateCycle()
 				resetFlag(FLAG_Z);
 			setFlag(FLAG_N);
 
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x15: // DEC D
 		{
@@ -1163,8 +1219,8 @@ void Cpu::emulateCycle()
 				resetFlag(FLAG_Z);
 			setFlag(FLAG_N);
 
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x1D: // DEC E
 		{
@@ -1180,8 +1236,8 @@ void Cpu::emulateCycle()
 				resetFlag(FLAG_Z);
 			setFlag(FLAG_N);
 
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 
 		case 0x25: // DEC H
@@ -1198,8 +1254,8 @@ void Cpu::emulateCycle()
 				resetFlag(FLAG_Z);
 			setFlag(FLAG_N);
 
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x2D: // DEC L
 		{
@@ -1215,8 +1271,8 @@ void Cpu::emulateCycle()
 				resetFlag(FLAG_Z);
 			setFlag(FLAG_N);
 
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x35: // DEC HL
 		{
@@ -1237,8 +1293,8 @@ void Cpu::emulateCycle()
 
 			setFlag(FLAG_N);
 
-			_registers.M = 3;
-			_registers.T = 12;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x87: // ADD A, A
 		{
@@ -1260,8 +1316,8 @@ void Cpu::emulateCycle()
 			else
 				resetFlag(FLAG_Z);
 
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x80: // ADD A, B
 		{
@@ -1284,8 +1340,8 @@ void Cpu::emulateCycle()
 			else
 				resetFlag(FLAG_Z);
 
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x81: // ADD A, C
 		{
@@ -1307,8 +1363,8 @@ void Cpu::emulateCycle()
 			else
 				resetFlag(FLAG_Z);
 
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x82: // ADD A, D
 		{
@@ -1330,8 +1386,8 @@ void Cpu::emulateCycle()
 			else
 				resetFlag(FLAG_Z);
 
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x83: // ADD A, E
 		{
@@ -1354,8 +1410,8 @@ void Cpu::emulateCycle()
 			else
 				resetFlag(FLAG_Z);
 
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x84: // ADD A, H
 		{
@@ -1377,8 +1433,8 @@ void Cpu::emulateCycle()
 			else
 				resetFlag(FLAG_Z);
 
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x85: // ADD A, L
 		{
@@ -1401,8 +1457,8 @@ void Cpu::emulateCycle()
 			else
 				resetFlag(FLAG_Z);
 
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x86: // ADD A, HL
 		{
@@ -1426,8 +1482,8 @@ void Cpu::emulateCycle()
 			else
 				resetFlag(FLAG_Z);
 
-			_registers.M = 2;
-			_registers.T = 8;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0xC6: // AND A, #
 		{
@@ -1447,8 +1503,8 @@ void Cpu::emulateCycle()
 			else
 				resetFlag(FLAG_Z);
 
-			_registers.M = 2;
-			_registers.T = 8;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0xA7: // AND A, A
 		{
@@ -1462,8 +1518,8 @@ void Cpu::emulateCycle()
 			setFlag(FLAG_H);
 			resetFlag(FLAG_C);
 
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0xA0: // AND A, B
 		{
@@ -1477,8 +1533,8 @@ void Cpu::emulateCycle()
 			setFlag(FLAG_H);
 			resetFlag(FLAG_C);
 
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0xA1: // AND A, C
 		{
@@ -1492,8 +1548,8 @@ void Cpu::emulateCycle()
 			setFlag(FLAG_H);
 			resetFlag(FLAG_C);
 
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0xA2: // AND A, D
 		{
@@ -1507,8 +1563,8 @@ void Cpu::emulateCycle()
 			setFlag(FLAG_H);
 			resetFlag(FLAG_C);
 
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0xA3: // AND A, E
 		{
@@ -1522,8 +1578,8 @@ void Cpu::emulateCycle()
 			setFlag(FLAG_H);
 			resetFlag(FLAG_C);
 
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0xA4: // AND A, H
 		{
@@ -1537,8 +1593,8 @@ void Cpu::emulateCycle()
 			setFlag(FLAG_H);
 			resetFlag(FLAG_C);
 
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0xA5: // AND A, L
 		{
@@ -1552,8 +1608,8 @@ void Cpu::emulateCycle()
 			setFlag(FLAG_H);
 			resetFlag(FLAG_C);
 
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0xA6: // AND A, (HL)
 		{
@@ -1567,8 +1623,8 @@ void Cpu::emulateCycle()
 			setFlag(FLAG_H);
 			resetFlag(FLAG_C);
 
-			_registers.M = 2;
-			_registers.T = 8;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0xE6: // AND A, #
 		{
@@ -1582,8 +1638,8 @@ void Cpu::emulateCycle()
 			setFlag(FLAG_H);
 			resetFlag(FLAG_C);
 
-			_registers.M = 2;
-			_registers.T = 8;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x97: // SUB A
 		{
@@ -1604,8 +1660,8 @@ void Cpu::emulateCycle()
 			else
 				resetFlag(FLAG_Z);
 			setFlag(FLAG_N);
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x90: // SUB B
 		{
@@ -1626,8 +1682,8 @@ void Cpu::emulateCycle()
 			else
 				resetFlag(FLAG_Z);
 			setFlag(FLAG_N);
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x91: // SUB C
 		{
@@ -1648,8 +1704,8 @@ void Cpu::emulateCycle()
 			else
 				resetFlag(FLAG_Z);
 			setFlag(FLAG_N);
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x92: // SUB D
 		{
@@ -1670,8 +1726,8 @@ void Cpu::emulateCycle()
 			else
 				resetFlag(FLAG_Z);
 			setFlag(FLAG_N);
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x93: // SUB E
 		{
@@ -1692,8 +1748,8 @@ void Cpu::emulateCycle()
 			else
 				resetFlag(FLAG_Z);
 			setFlag(FLAG_N);
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x94: // SUB H
 		{
@@ -1714,8 +1770,8 @@ void Cpu::emulateCycle()
 			else
 				resetFlag(FLAG_Z);
 			setFlag(FLAG_N);
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x95: // SUB L
 		{
@@ -1736,8 +1792,8 @@ void Cpu::emulateCycle()
 			else
 				resetFlag(FLAG_Z);
 			setFlag(FLAG_N);
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x96: // SUB (HL)
 		{
@@ -1759,8 +1815,8 @@ void Cpu::emulateCycle()
 			else
 				resetFlag(FLAG_Z);
 			setFlag(FLAG_N);
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0xD6: // SUB #
 		{
@@ -1782,8 +1838,8 @@ void Cpu::emulateCycle()
 			else
 				resetFlag(FLAG_Z);
 			setFlag(FLAG_N);
-			_registers.M = 2;
-			_registers.T = 8;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0xBF: // CP A, A
 		{
@@ -1804,8 +1860,8 @@ void Cpu::emulateCycle()
 			else
 				resetFlag(FLAG_H);
 
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0xB8: // CP A, B
 		{
@@ -1826,8 +1882,8 @@ void Cpu::emulateCycle()
 			else
 				resetFlag(FLAG_H);
 
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0xB9: //CP A, C
 		{
@@ -1848,8 +1904,8 @@ void Cpu::emulateCycle()
 			else
 				resetFlag(FLAG_H);
 
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0xBA: // CP A, D
 		{
@@ -1870,8 +1926,8 @@ void Cpu::emulateCycle()
 			else
 				resetFlag(FLAG_H);
 
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0xBB: //CP A, E
 		{
@@ -1892,8 +1948,8 @@ void Cpu::emulateCycle()
 			else
 				resetFlag(FLAG_H);
 
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0xBC: //CP A, H
 		{
@@ -1914,8 +1970,8 @@ void Cpu::emulateCycle()
 			else
 				resetFlag(FLAG_H);
 
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0xBD: // CP A, L
 		{
@@ -1936,8 +1992,8 @@ void Cpu::emulateCycle()
 			else
 				resetFlag(FLAG_H);
 
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0xFE: // CP A, #
 		{
@@ -1960,8 +2016,8 @@ void Cpu::emulateCycle()
 			else
 				resetFlag(FLAG_H);
 
-			_registers.M = 2;
-			_registers.T = 8;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0xBE: // CP A, HL
 		{
@@ -1983,8 +2039,8 @@ void Cpu::emulateCycle()
 			else
 				resetFlag(FLAG_H);
 
-			_registers.M = 2;
-			_registers.T = 8;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0xB7: // OR A, A
 		{
@@ -1997,8 +2053,8 @@ void Cpu::emulateCycle()
 			resetFlag(FLAG_H);
 			resetFlag(FLAG_N);
 			resetFlag(FLAG_C);
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0xB0: // OR A, B
 		{
@@ -2011,8 +2067,8 @@ void Cpu::emulateCycle()
 			resetFlag(FLAG_H);
 			resetFlag(FLAG_N);
 			resetFlag(FLAG_C);
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0xB1: // OR A, C
 		{
@@ -2025,8 +2081,8 @@ void Cpu::emulateCycle()
 			resetFlag(FLAG_H);
 			resetFlag(FLAG_N);
 			resetFlag(FLAG_C);
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0xB2: // OR A, D
 		{
@@ -2039,8 +2095,8 @@ void Cpu::emulateCycle()
 			resetFlag(FLAG_H);
 			resetFlag(FLAG_N);
 			resetFlag(FLAG_C);
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0xB3: // OR A, E
 		{
@@ -2053,8 +2109,8 @@ void Cpu::emulateCycle()
 			resetFlag(FLAG_H);
 			resetFlag(FLAG_N);
 			resetFlag(FLAG_C);
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0xB4: // OR A, H
 		{
@@ -2067,8 +2123,8 @@ void Cpu::emulateCycle()
 			resetFlag(FLAG_H);
 			resetFlag(FLAG_N);
 			resetFlag(FLAG_C);
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0xB5: // OR A, L
 		{
@@ -2081,8 +2137,8 @@ void Cpu::emulateCycle()
 			resetFlag(FLAG_H);
 			resetFlag(FLAG_N);
 			resetFlag(FLAG_C);
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0xB6: // OR A, (HL)
 		{
@@ -2095,8 +2151,8 @@ void Cpu::emulateCycle()
 			resetFlag(FLAG_H);
 			resetFlag(FLAG_N);
 			resetFlag(FLAG_C);
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0xF6: // OR A, #
 		{
@@ -2109,8 +2165,8 @@ void Cpu::emulateCycle()
 			resetFlag(FLAG_H);
 			resetFlag(FLAG_N);
 			resetFlag(FLAG_C);
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0xAF: // XOR A, A
 		{
@@ -2122,8 +2178,8 @@ void Cpu::emulateCycle()
 			resetFlag(FLAG_N);
 			resetFlag(FLAG_H);
 			resetFlag(FLAG_C);
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0xA8: // XOR A, B
 		{
@@ -2135,8 +2191,8 @@ void Cpu::emulateCycle()
 			resetFlag(FLAG_N);
 			resetFlag(FLAG_H);
 			resetFlag(FLAG_C);
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0xA9: // XOR A, C
 		{
@@ -2148,8 +2204,8 @@ void Cpu::emulateCycle()
 			resetFlag(FLAG_N);
 			resetFlag(FLAG_H);
 			resetFlag(FLAG_C);
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0xAA: // XOR A, D
 		{
@@ -2161,8 +2217,8 @@ void Cpu::emulateCycle()
 			resetFlag(FLAG_N);
 			resetFlag(FLAG_H);
 			resetFlag(FLAG_C);
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0xAB: // XOR A, E
 		{
@@ -2174,8 +2230,8 @@ void Cpu::emulateCycle()
 			resetFlag(FLAG_N);
 			resetFlag(FLAG_H);
 			resetFlag(FLAG_C);
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0xAC: // XOR A, H
 		{
@@ -2187,8 +2243,8 @@ void Cpu::emulateCycle()
 			resetFlag(FLAG_N);
 			resetFlag(FLAG_H);
 			resetFlag(FLAG_C);
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0xAD: // XOR A, L
 		{
@@ -2200,8 +2256,8 @@ void Cpu::emulateCycle()
 			resetFlag(FLAG_N);
 			resetFlag(FLAG_H);
 			resetFlag(FLAG_C);
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0xEE: // XOR A, #
 		{
@@ -2213,8 +2269,8 @@ void Cpu::emulateCycle()
 			resetFlag(FLAG_N);
 			resetFlag(FLAG_H);
 			resetFlag(FLAG_C);
-			_registers.M = 2;
-			_registers.T = 8;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x8F: // ADC A, A
 		{
@@ -2239,8 +2295,8 @@ void Cpu::emulateCycle()
 			else
 				resetFlag(FLAG_Z);
 
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x88: // ADC A, B
 		{			
@@ -2265,8 +2321,8 @@ void Cpu::emulateCycle()
 			else
 				resetFlag(FLAG_Z);
 
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x89: // ADC A, C
 		{
@@ -2291,8 +2347,8 @@ void Cpu::emulateCycle()
 			else
 				resetFlag(FLAG_Z);
 
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x8A: // ADC A, D
 		{
@@ -2317,8 +2373,8 @@ void Cpu::emulateCycle()
 			else
 				resetFlag(FLAG_Z);
 
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x8B: // ADC A, E
 		{
@@ -2343,8 +2399,8 @@ void Cpu::emulateCycle()
 			else
 				resetFlag(FLAG_Z);
 
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x8C: // ADC A, H
 		{
@@ -2369,8 +2425,8 @@ void Cpu::emulateCycle()
 			else
 				resetFlag(FLAG_Z);
 
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x8D: // ADC A, L
 		{
@@ -2395,8 +2451,8 @@ void Cpu::emulateCycle()
 			else
 				resetFlag(FLAG_Z);
 
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x8E: // ADC A, (HL)
 		{
@@ -2422,8 +2478,289 @@ void Cpu::emulateCycle()
 			else
 				resetFlag(FLAG_Z);
 
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
+		} break;
+		case 0x9F: // SBC A, A
+		{
+			byte flagC = getFlag(FLAG_C);
+
+			int regALoNibble = _registers.A & 0x0F;
+			int otherLoNibble = flagC + (_registers.A & 0x0F);
+			if (regALoNibble < otherLoNibble)
+				setFlag(FLAG_H);
+			else
+				resetFlag(FLAG_H);
+
+			int regA = _registers.A;
+			int other = flagC + _registers.A;
+
+			if (regA < other)
+				setFlag(FLAG_C);
+			else
+				resetFlag(FLAG_C);
+
+			setFlag(FLAG_N);
+
+			_registers.A -= flagC + _registers.A;
+
+			if (_registers.A == 0x00)
+				setFlag(FLAG_Z);
+			else
+				resetFlag(FLAG_Z);
+
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
+		} break;
+		case 0x98: // SBC A, B
+		{
+			byte flagC = getFlag(FLAG_C);
+
+			int regALoNibble = _registers.A & 0x0F;
+			int otherLoNibble = flagC + (_registers.B & 0x0F);
+			if (regALoNibble < otherLoNibble)
+				setFlag(FLAG_H);
+			else
+				resetFlag(FLAG_H);
+
+			int regA = _registers.A;
+			int other = flagC + _registers.B;
+
+			if (regA < other)
+				setFlag(FLAG_C);
+			else
+				resetFlag(FLAG_C);
+
+			setFlag(FLAG_N);
+
+			_registers.A -= flagC + _registers.B;
+
+			if (_registers.A == 0x00)
+				setFlag(FLAG_Z);
+			else
+				resetFlag(FLAG_Z);
+
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
+		} break;
+		case 0x99: // SBC A, C
+		{
+			byte flagC = getFlag(FLAG_C);
+
+			int regALoNibble = _registers.A & 0x0F;
+			int otherLoNibble = flagC + (_registers.C & 0x0F);
+			if (regALoNibble < otherLoNibble)
+				setFlag(FLAG_H);
+			else
+				resetFlag(FLAG_H);
+
+			int regA = _registers.A;
+			int other = flagC + _registers.C;
+
+			if (regA < other)
+				setFlag(FLAG_C);
+			else
+				resetFlag(FLAG_C);
+
+			setFlag(FLAG_N);
+
+			_registers.A -= flagC + _registers.C;
+
+			if (_registers.A == 0x00)
+				setFlag(FLAG_Z);
+			else
+				resetFlag(FLAG_Z);
+
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
+		} break;
+		case 0x9A: // SBC A, D
+		{
+			byte flagC = getFlag(FLAG_C);
+
+			int regALoNibble = _registers.A & 0x0F;
+			int otherLoNibble = flagC + (_registers.D & 0x0F);
+			if (regALoNibble < otherLoNibble)
+				setFlag(FLAG_H);
+			else
+				resetFlag(FLAG_H);
+
+			int regA = _registers.A;
+			int other = flagC + _registers.D;
+
+			if (regA < other)
+				setFlag(FLAG_C);
+			else
+				resetFlag(FLAG_C);
+
+			setFlag(FLAG_N);
+
+			_registers.A -= flagC + _registers.D;
+
+			if (_registers.A == 0x00)
+				setFlag(FLAG_Z);
+			else
+				resetFlag(FLAG_Z);
+
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
+		} break;
+		case 0x9B: // SBC A, E
+		{
+			byte flagC = getFlag(FLAG_C);
+
+			int regALoNibble = _registers.A & 0x0F;
+			int otherLoNibble = flagC + (_registers.E & 0x0F);
+			if (regALoNibble < otherLoNibble)
+				setFlag(FLAG_H);
+			else
+				resetFlag(FLAG_H);
+
+			int regA = _registers.A;
+			int other = flagC + _registers.E;
+
+			if (regA < other)
+				setFlag(FLAG_C);
+			else
+				resetFlag(FLAG_C);
+
+			setFlag(FLAG_N);
+
+			_registers.A -= flagC + _registers.E;
+
+			if (_registers.A == 0x00)
+				setFlag(FLAG_Z);
+			else
+				resetFlag(FLAG_Z);
+
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
+		} break;
+		case 0x9C: // SBC A, H
+		{
+			byte flagC = getFlag(FLAG_C);
+
+			int regALoNibble = _registers.A & 0x0F;
+			int otherLoNibble = flagC + (_registers.H & 0x0F);
+			if (regALoNibble < otherLoNibble)
+				setFlag(FLAG_H);
+			else
+				resetFlag(FLAG_H);
+
+			int regA = _registers.A;
+			int other = flagC + _registers.H;
+
+			if (regA < other)
+				setFlag(FLAG_C);
+			else
+				resetFlag(FLAG_C);
+
+			setFlag(FLAG_N);
+
+			_registers.A -= flagC + _registers.H;
+
+			if (_registers.A == 0x00)
+				setFlag(FLAG_Z);
+			else
+				resetFlag(FLAG_Z);
+
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
+		} break;
+		case 0x9D: // SBC A, L
+		{
+			byte flagC = getFlag(FLAG_C);
+
+			int regALoNibble = _registers.A & 0x0F;
+			int otherLoNibble = flagC + (_registers.L & 0x0F);
+			if (regALoNibble < otherLoNibble)
+				setFlag(FLAG_H);
+			else
+				resetFlag(FLAG_H);
+
+			int regA = _registers.A;
+			int other = flagC + _registers.L;
+
+			if (regA < other)
+				setFlag(FLAG_C);
+			else
+				resetFlag(FLAG_C);
+
+			setFlag(FLAG_N);
+
+			_registers.A -= flagC + _registers.L;
+
+			if (_registers.A == 0x00)
+				setFlag(FLAG_Z);
+			else
+				resetFlag(FLAG_Z);
+
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
+		} break;
+		case 0x9E: // SBC A, (HL)
+		{
+			byte flagC = getFlag(FLAG_C);
+			byte val = _memory.readByte((_registers.H << 8) + _registers.L);
+
+			int regALoNibble = _registers.A & 0x0F;
+			int otherLoNibble = flagC + (val & 0x0F);
+			if (regALoNibble < otherLoNibble)
+				setFlag(FLAG_H);
+			else
+				resetFlag(FLAG_H);
+
+			int regA = _registers.A;
+			int other = flagC + val;
+
+			if (regA < other)
+				setFlag(FLAG_C);
+			else
+				resetFlag(FLAG_C);
+
+			setFlag(FLAG_N);
+
+			_registers.A -= flagC + val;
+
+			if (_registers.A == 0x00)
+				setFlag(FLAG_Z);
+			else
+				resetFlag(FLAG_Z);
+
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
+		} break;
+		case 0xDE: // SBC A, n
+		{
+			byte flagC = getFlag(FLAG_C);
+			byte val = _memory.readByte(_registers.pc++);
+
+			int regALoNibble = _registers.A & 0x0F;
+			int otherLoNibble = flagC + (val & 0x0F);
+			if (regALoNibble < otherLoNibble)
+				setFlag(FLAG_H);
+			else
+				resetFlag(FLAG_H);
+
+			int regA = _registers.A;
+			int other = flagC + val;
+
+			if (regA < other)
+				setFlag(FLAG_C);
+			else
+				resetFlag(FLAG_C);
+
+			setFlag(FLAG_N);
+
+			_registers.A -= flagC + val;
+
+			if (_registers.A == 0x00)
+				setFlag(FLAG_Z);
+			else
+				resetFlag(FLAG_Z);
+
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 
 		// 16-bit ALU
@@ -2433,8 +2770,8 @@ void Cpu::emulateCycle()
 				_registers.B++;
 			_registers.C++;
 			
-			_registers.M = 2;
-			_registers.T = 8;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x13: // INC DE
 		{
@@ -2442,8 +2779,8 @@ void Cpu::emulateCycle()
 				_registers.D++;
 			_registers.E++;
 
-			_registers.M = 2;
-			_registers.T = 8;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x23: // INC HL
 		{
@@ -2451,44 +2788,44 @@ void Cpu::emulateCycle()
 				_registers.H++;
 			_registers.L++;
 
-			_registers.M = 2;
-			_registers.T = 8;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x33: // INC SP
 		{
 			_registers.sp++;
-			_registers.M = 2;
-			_registers.T = 8;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x0B: // DEC BC
 		{
 			if (_registers.C == 0x00)
 				_registers.B--;
 			_registers.C--;
-			_registers.M = 2;
-			_registers.T = 8;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x1B: // DEC DE
 		{
 			if (_registers.E == 0x00)
 				_registers.D--;
 			_registers.E--;
-			_registers.M = 2;
-			_registers.T = 8;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x2B: // DEC HL
 		{
 			if (_registers.L == 0x00)
 				_registers.H--;
 			_registers.L--;
-			_registers.M = 2;
-			_registers.T = 8;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x3B: // DEC SP 
 		{
 			_registers.sp--;
-			_registers.M = 2;
-			_registers.T = 8;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x09: // ADD HL, BC
 		{
@@ -2509,8 +2846,8 @@ void Cpu::emulateCycle()
 			_registers.H = (HL >> 8) & 0xFF;
 			_registers.L = HL & 0xFF;
 			
-			_registers.M = 2;
-			_registers.T = 8;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 
 		} break;
 		case 0x19: // ADD HL, DE
@@ -2532,8 +2869,8 @@ void Cpu::emulateCycle()
 			_registers.H = (HL >> 8) & 0xFF;
 			_registers.L = HL & 0xFF;
 
-			_registers.M = 2;
-			_registers.T = 8;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x29: // ADD HL, HL
 		{
@@ -2554,8 +2891,8 @@ void Cpu::emulateCycle()
 			_registers.H = (HL >> 8) & 0xFF;
 			_registers.L = HL & 0xFF;
 
-			_registers.M = 2;
-			_registers.T = 8;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x39: // ADD HL, SP
 		{
@@ -2576,8 +2913,8 @@ void Cpu::emulateCycle()
 			_registers.H = (HL >> 8) & 0xFF;
 			_registers.L = HL & 0xFF;
 
-			_registers.M = 2;
-			_registers.T = 8;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 
 		// Rotates & Shifts
@@ -2595,8 +2932,8 @@ void Cpu::emulateCycle()
 			resetFlag(FLAG_H);
 			resetFlag(FLAG_N);
 
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x17: // RL A
 		{
@@ -2622,8 +2959,8 @@ void Cpu::emulateCycle()
 			else
 				resetFlag(FLAG_Z);
 
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x07: // RLCA
 		{
@@ -2644,8 +2981,8 @@ void Cpu::emulateCycle()
 			else
 				resetFlag(FLAG_C);
 
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 
 		// Calls
@@ -2654,13 +2991,13 @@ void Cpu::emulateCycle()
 			_registers.sp -= 2;
 			_memory.writeWord(_registers.sp, _registers.pc + 2);
 			_registers.pc = _memory.readWord(_registers.pc);
-			_registers.M = 5;
-			_registers.T = 20; //TODO: check correct timing manual says 12Cycles
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2; //TODO: check correct timing manual says 12Cycles
 		} break;
 		case 0xC4: // CALL NZ, nn
 		{
-			_registers.M = 3;
-			_registers.T = 12;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 			if (!isFlagSet(FLAG_Z)) 
 			{
 				_registers.sp -= 2;
@@ -2675,8 +3012,8 @@ void Cpu::emulateCycle()
 		} break;
 		case 0xCC: // CALL Z, nn
 		{
-			_registers.M = 3;
-			_registers.T = 12;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 			if (isFlagSet(FLAG_Z))
 			{
 				_registers.sp -= 2;
@@ -2690,8 +3027,8 @@ void Cpu::emulateCycle()
 		} break;
 		case 0xD4: // CALL NC, nn
 		{
-			_registers.M = 3;
-			_registers.T = 12;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 			if (!isFlagSet(FLAG_C))
 			{
 				_registers.sp -= 2;
@@ -2705,8 +3042,8 @@ void Cpu::emulateCycle()
 		} break;
 		case 0xDC: // CALL C, nn
 		{
-			_registers.M = 3;
-			_registers.T = 12;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 			if (isFlagSet(FLAG_C))
 			{
 				_registers.sp -= 2;
@@ -2723,19 +3060,19 @@ void Cpu::emulateCycle()
 		case 0xC3: // JP nn
 		{
 			_registers.pc = _memory.readWord(_registers.pc);
-			_registers.M = 3;
-			_registers.T = 12;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0xE9: // JP (HL)
 		{
 			_registers.pc = (_registers.H << 8) + _registers.L;
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0xC2: // JP NZ, nn
 		{
-			_registers.M = 3;
-			_registers.T = 12;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 			if (!isFlagSet(FLAG_Z))
 			{
 				_registers.pc = _memory.readWord(_registers.pc);
@@ -2749,8 +3086,8 @@ void Cpu::emulateCycle()
 		} break;
 		case 0xCA: // JP Z, nn
 		{
-			_registers.M = 3;
-			_registers.T = 12;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 			if (isFlagSet(FLAG_Z))
 			{
 				_registers.pc = _memory.readWord(_registers.pc);
@@ -2764,8 +3101,8 @@ void Cpu::emulateCycle()
 		} break;
 		case 0xD2: // JP NC, nn
 		{
-			_registers.M = 3;
-			_registers.T = 12;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 			if (!isFlagSet(FLAG_C))
 			{
 				_registers.pc = _memory.readWord(_registers.pc);
@@ -2779,8 +3116,8 @@ void Cpu::emulateCycle()
 		} break;
 		case 0xDA: // JP C, nn
 		{
-			_registers.M = 3;
-			_registers.T = 12;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 			if (isFlagSet(FLAG_C))
 			{
 				_registers.pc = _memory.readWord(_registers.pc);
@@ -2797,8 +3134,8 @@ void Cpu::emulateCycle()
 		{
 			signed char n = _memory.readByte(_registers.pc);
 			_registers.pc++;
-			_registers.M = 2;
-			_registers.T = 8;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 			_registers.pc += n;
 			_registers.M++;
 			_registers.T += 4;
@@ -2807,8 +3144,8 @@ void Cpu::emulateCycle()
 		{
 			signed char nextByte = _memory.readByte(_registers.pc);
 			_registers.pc++;
-			_registers.M = 2;
-			_registers.T = 8;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 			if (!isFlagSet(FLAG_Z))
 			{
 				_registers.pc += nextByte;
@@ -2820,8 +3157,8 @@ void Cpu::emulateCycle()
 		{
 			signed char nextByte = _memory.readByte(_registers.pc);
 			_registers.pc++;
-			_registers.M = 2;
-			_registers.T = 8;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 			if (isFlagSet(FLAG_Z))
 			{
 				_registers.pc += nextByte;
@@ -2833,8 +3170,8 @@ void Cpu::emulateCycle()
 		{
 			signed char nextByte = _memory.readByte(_registers.pc);
 			_registers.pc++;
-			_registers.M = 2;
-			_registers.T = 8;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 			if (!isFlagSet(FLAG_C))
 			{
 				_registers.pc += nextByte;
@@ -2846,8 +3183,8 @@ void Cpu::emulateCycle()
 		{
 			signed char nextByte = _memory.readByte(_registers.pc);
 			_registers.pc++;
-			_registers.M = 2;
-			_registers.T = 8;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 			if (isFlagSet(FLAG_C))
 			{
 				_registers.pc += nextByte;
@@ -2862,8 +3199,8 @@ void Cpu::emulateCycle()
 			_registers.pc = _memory.readWord(_registers.sp);
 			_registers.sp += 2;
 
-			_registers.M = 2;
-			_registers.T = 8;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0xC0: // RET NZ
 		{
@@ -2872,8 +3209,8 @@ void Cpu::emulateCycle()
 				_registers.pc = _memory.readWord(_registers.sp);
 				_registers.sp += 2;
 			}
-			_registers.M = 2;
-			_registers.T = 8;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0xC8: // RET Z
 		{
@@ -2882,8 +3219,8 @@ void Cpu::emulateCycle()
 				_registers.pc = _memory.readWord(_registers.sp);
 				_registers.sp += 2;
 			}
-			_registers.M = 2;
-			_registers.T = 8;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0xD0: // RET NC
 		{
@@ -2892,8 +3229,8 @@ void Cpu::emulateCycle()
 				_registers.pc = _memory.readWord(_registers.sp);
 				_registers.sp += 2;
 			}
-			_registers.M = 2;
-			_registers.T = 8;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0xD8: // RET C
 		{
@@ -2902,8 +3239,8 @@ void Cpu::emulateCycle()
 				_registers.pc = _memory.readWord(_registers.sp);
 				_registers.sp += 2;
 			}
-			_registers.M = 2;
-			_registers.T = 8;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0xD9: // RETI
 		{
@@ -2912,14 +3249,30 @@ void Cpu::emulateCycle()
 			_registers.pc = _memory.readWord(_registers.sp);
 			_registers.sp += 2;
 
-			_registers.M = 3;
-			_registers.T = 12;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 
 		// Misc
 		case 0x27: // DAA
 		{
-			
+			/*
+			int a = _registers.A;
+
+			if ((_registers.F & 0x20) || (_registers.A & 0xF) > 9)
+				_registers.A += 6;
+
+			_registers.F &= 0xEF;
+
+			if ((_registers.F & 0x20) || a > 0x99)
+			{
+				_registers.A += 0x60;
+				_registers.F |= 0x10;
+			}
+
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			*/
+				
 			word s = _registers.A;
 
 			if (isFlagSet(FLAG_N)) 
@@ -2933,7 +3286,7 @@ void Cpu::emulateCycle()
 				if (isFlagSet(FLAG_C) || s > 0x9F) s += 0x60;
 			}
 
-			_registers.A = (byte)s;
+			_registers.A = (s & 0xFF);
 			resetFlag(FLAG_H);
 			
 			if (_registers.A == 0x00) 
@@ -2948,14 +3301,14 @@ void Cpu::emulateCycle()
 		case 0xF3: // DI
 		{
 			_registers.ime = 0;
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0xFB: // EI
 		{
 			_registers.ime = 1;
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		// Restarts
 		case 0xC7: // RST 0x00
@@ -2963,72 +3316,72 @@ void Cpu::emulateCycle()
 			_registers.sp -= 2;
 			_memory.writeWord(_registers.sp, _registers.pc);
 			_registers.pc = 0x00;
-			_registers.M = 8;
-			_registers.T = 32;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0xCF: // RST 0x08
 		{
 			_registers.sp -= 2;
 			_memory.writeWord(_registers.sp, _registers.pc);
 			_registers.pc = 0x08;
-			_registers.M = 8;
-			_registers.T = 32;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0xD7: // RST 0x10
 		{
 			_registers.sp -= 2;
 			_memory.writeWord(_registers.sp, _registers.pc);
 			_registers.pc = 0x10;
-			_registers.M = 8;
-			_registers.T = 32;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0xDF: // RST 0x18
 		{
 			_registers.sp -= 2;
 			_memory.writeWord(_registers.sp, _registers.pc);
 			_registers.pc = 0x18;
-			_registers.M = 8;
-			_registers.T = 32;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0xE7: // RST 0x20
 		{
 			_registers.sp -= 2;
 			_memory.writeWord(_registers.sp, _registers.pc);
 			_registers.pc = 0x20;
-			_registers.M = 8;
-			_registers.T = 32;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0xEF: // RST 0x28
 		{
 			_registers.sp -= 2;
 			_memory.writeWord(_registers.sp, _registers.pc);
 			_registers.pc = 0x28;
-			_registers.M = 8;
-			_registers.T = 32;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0xF7: // RST 0x30
 		{
 			_registers.sp -= 2;
 			_memory.writeWord(_registers.sp, _registers.pc);
 			_registers.pc = 0x30;
-			_registers.M = 8;
-			_registers.T = 32;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0xFF: // RST 0x38
 		{
 			_registers.sp -= 2;
 			_memory.writeWord(_registers.sp, _registers.pc);
 			_registers.pc = 0x38;
-			_registers.M = 8;
-			_registers.T = 32;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;						
 		case 0x2F: // CPL
 		{
 			_registers.A = ~_registers.A;
 			setFlag(FLAG_N);
 			setFlag(FLAG_H);
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x3F: // SCF
 		{
@@ -3036,8 +3389,8 @@ void Cpu::emulateCycle()
 			resetFlag(FLAG_N);
 			resetFlag(FLAG_H);
 
-			_registers.M = 1;
-			_registers.T = 4;
+			_registers.M = coreInstructionTicks[_opcode] / 2;
+			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 
 		// CB
@@ -3056,8 +3409,8 @@ void Cpu::emulateCycle()
 					resetFlag(FLAG_N);
 					setFlag(FLAG_H);
 
-					_registers.M = 2;
-					_registers.T = 8;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0x4F: // BIT 1A
 				{
@@ -3068,8 +3421,8 @@ void Cpu::emulateCycle()
 					resetFlag(FLAG_N);
 					setFlag(FLAG_H);
 
-					_registers.M = 2;
-					_registers.T = 8;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0x57: // BIT 2A
 				{
@@ -3080,8 +3433,8 @@ void Cpu::emulateCycle()
 					resetFlag(FLAG_N);
 					setFlag(FLAG_H);
 
-					_registers.M = 2;
-					_registers.T = 8;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0x5F: // BIT 3A
 				{
@@ -3092,8 +3445,8 @@ void Cpu::emulateCycle()
 					resetFlag(FLAG_N);
 					setFlag(FLAG_H);
 
-					_registers.M = 2;
-					_registers.T = 8;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0x67: // BIT 4A
 				{
@@ -3104,8 +3457,8 @@ void Cpu::emulateCycle()
 					resetFlag(FLAG_N);
 					setFlag(FLAG_H);
 
-					_registers.M = 2;
-					_registers.T = 8;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0x6F: // BIT 5A
 				{
@@ -3116,8 +3469,8 @@ void Cpu::emulateCycle()
 					resetFlag(FLAG_N);
 					setFlag(FLAG_H);
 
-					_registers.M = 2;
-					_registers.T = 8;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0x77: // BIT 6A
 				{
@@ -3128,8 +3481,8 @@ void Cpu::emulateCycle()
 					resetFlag(FLAG_N);
 					setFlag(FLAG_H);
 
-					_registers.M = 2;
-					_registers.T = 8;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0x7F: // BIT 7A
 				{
@@ -3140,8 +3493,8 @@ void Cpu::emulateCycle()
 					resetFlag(FLAG_N);
 					setFlag(FLAG_H);
 
-					_registers.M = 2;
-					_registers.T = 8;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0x40: // BIT 0B
 				{
@@ -3152,8 +3505,8 @@ void Cpu::emulateCycle()
 					resetFlag(FLAG_N);
 					setFlag(FLAG_H);
 
-					_registers.M = 2;
-					_registers.T = 8;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0x48: // BIT 1B
 				{
@@ -3164,8 +3517,8 @@ void Cpu::emulateCycle()
 					resetFlag(FLAG_N);
 					setFlag(FLAG_H);
 
-					_registers.M = 2;
-					_registers.T = 8;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0x50: // BIT 2B
 				{
@@ -3176,8 +3529,8 @@ void Cpu::emulateCycle()
 					resetFlag(FLAG_N);
 					setFlag(FLAG_H);
 
-					_registers.M = 2;
-					_registers.T = 8;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0x58: // BIT 3B
 				{
@@ -3188,8 +3541,8 @@ void Cpu::emulateCycle()
 					resetFlag(FLAG_N);
 					setFlag(FLAG_H);
 
-					_registers.M = 2;
-					_registers.T = 8;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0x60: // BIT 4B
 				{
@@ -3200,8 +3553,8 @@ void Cpu::emulateCycle()
 					resetFlag(FLAG_N);
 					setFlag(FLAG_H);
 
-					_registers.M = 2;
-					_registers.T = 8;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0x68: // BIT 5B
 				{
@@ -3212,8 +3565,8 @@ void Cpu::emulateCycle()
 					resetFlag(FLAG_N);
 					setFlag(FLAG_H);
 
-					_registers.M = 2;
-					_registers.T = 8;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0x70: // BIT 6B
 				{
@@ -3224,8 +3577,8 @@ void Cpu::emulateCycle()
 					resetFlag(FLAG_N);
 					setFlag(FLAG_H);
 
-					_registers.M = 2;
-					_registers.T = 8;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0x78: // BIT 7B
 				{
@@ -3236,8 +3589,8 @@ void Cpu::emulateCycle()
 					resetFlag(FLAG_N);
 					setFlag(FLAG_H);
 
-					_registers.M = 2;
-					_registers.T = 8;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0x41: // BIT 0C
 				{
@@ -3248,8 +3601,8 @@ void Cpu::emulateCycle()
 					resetFlag(FLAG_N);
 					setFlag(FLAG_H);
 
-					_registers.M = 2;
-					_registers.T = 8;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0x49: // BIT 1C
 				{
@@ -3260,8 +3613,8 @@ void Cpu::emulateCycle()
 					resetFlag(FLAG_N);
 					setFlag(FLAG_H);
 
-					_registers.M = 2;
-					_registers.T = 8;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0x51: // BIT 2C
 				{
@@ -3272,8 +3625,8 @@ void Cpu::emulateCycle()
 					resetFlag(FLAG_N);
 					setFlag(FLAG_H);
 
-					_registers.M = 2;
-					_registers.T = 8;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0x59: // BIT 3C
 				{
@@ -3284,8 +3637,8 @@ void Cpu::emulateCycle()
 					resetFlag(FLAG_N);
 					setFlag(FLAG_H);
 
-					_registers.M = 2;
-					_registers.T = 8;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0x61: // BIT 4C
 				{
@@ -3296,8 +3649,8 @@ void Cpu::emulateCycle()
 					resetFlag(FLAG_N);
 					setFlag(FLAG_H);
 
-					_registers.M = 2;
-					_registers.T = 8;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0x69: // BIT 5C
 				{
@@ -3308,8 +3661,8 @@ void Cpu::emulateCycle()
 					resetFlag(FLAG_N);
 					setFlag(FLAG_H);
 
-					_registers.M = 2;
-					_registers.T = 8;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0x71: // BIT 6C
 				{
@@ -3320,8 +3673,8 @@ void Cpu::emulateCycle()
 					resetFlag(FLAG_N);
 					setFlag(FLAG_H);
 
-					_registers.M = 2;
-					_registers.T = 8;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0x79: // BIT 7C
 				{
@@ -3332,8 +3685,8 @@ void Cpu::emulateCycle()
 					resetFlag(FLAG_N);
 					setFlag(FLAG_H);
 
-					_registers.M = 2;
-					_registers.T = 8;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0x7C: // BIT 7H
 				{
@@ -3344,8 +3697,8 @@ void Cpu::emulateCycle()
 					resetFlag(FLAG_N);
 					setFlag(FLAG_H);
 
-					_registers.M = 2;
-					_registers.T = 8;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0x46: // BIT 0HL
 				{
@@ -3357,8 +3710,8 @@ void Cpu::emulateCycle()
 					resetFlag(FLAG_N);
 					setFlag(FLAG_H);
 
-					_registers.M = 3;
-					_registers.T = 12;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0x4E: // BIT 1HL
 				{
@@ -3370,8 +3723,8 @@ void Cpu::emulateCycle()
 					resetFlag(FLAG_N);
 					setFlag(FLAG_H);
 
-					_registers.M = 3;
-					_registers.T = 12;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0x56: // BIT 2HL
 				{
@@ -3383,8 +3736,8 @@ void Cpu::emulateCycle()
 					resetFlag(FLAG_N);
 					setFlag(FLAG_H);
 
-					_registers.M = 3;
-					_registers.T = 12;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0x5E: // BIT 3HL
 				{
@@ -3396,8 +3749,8 @@ void Cpu::emulateCycle()
 					resetFlag(FLAG_N);
 					setFlag(FLAG_H);
 
-					_registers.M = 3;
-					_registers.T = 12;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0x66: // BIT 4HL
 				{
@@ -3409,8 +3762,8 @@ void Cpu::emulateCycle()
 					resetFlag(FLAG_N);
 					setFlag(FLAG_H);
 
-					_registers.M = 3;
-					_registers.T = 12;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0x6E: // BIT 5HL
 				{
@@ -3422,8 +3775,8 @@ void Cpu::emulateCycle()
 					resetFlag(FLAG_N);
 					setFlag(FLAG_H);
 
-					_registers.M = 3;
-					_registers.T = 12;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0x76: // BIT 6HL
 				{
@@ -3435,8 +3788,8 @@ void Cpu::emulateCycle()
 					resetFlag(FLAG_N);
 					setFlag(FLAG_H);
 
-					_registers.M = 3;
-					_registers.T = 12;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0x7E: // BIT 7HL
 				{
@@ -3448,114 +3801,114 @@ void Cpu::emulateCycle()
 					resetFlag(FLAG_N);
 					setFlag(FLAG_H);
 
-					_registers.M = 3;
-					_registers.T = 12;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0x87: // RES 0, A
 				{
 					_registers.A &= ~0x1;
-					_registers.M = 2;
-					_registers.T = 8;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0x80: // RES 0, B
 				{
 					_registers.B &= ~0x1;
-					_registers.M = 2;
-					_registers.T = 8;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0x81: // RES 0, C
 				{
 					_registers.C &= ~0x1;
-					_registers.M = 2;
-					_registers.T = 8;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0x82: // RES 0, D
 				{
 					_registers.D &= ~0x1;
-					_registers.M = 2;
-					_registers.T = 8;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0x83: // RES 0, E
 				{
 					_registers.E &= ~0x1;
-					_registers.M = 2;
-					_registers.T = 8;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0x84: // RES 0, H
 				{
 					_registers.H &= ~0x1;
-					_registers.M = 2;
-					_registers.T = 8;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0x85: // RES 0, L
 				{
 					_registers.L &= ~0x1;
-					_registers.M = 2;
-					_registers.T = 8;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0x86: // RES 0, (HL)
 				{
 					byte val = _memory.readByte((_registers.H << 8) + _registers.L);
 					val &= ~0x1;
 					_memory.writeByte((_registers.H << 8) + _registers.L, val);
-					_registers.M = 4;
-					_registers.T = 16;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0x8E: // RES 1, (HL)
 				{
 					byte val = _memory.readByte((_registers.H << 8) + _registers.L);
 					val &= ~0x2;
 					_memory.writeByte((_registers.H << 8) + _registers.L, val);
-					_registers.M = 4;
-					_registers.T = 16;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0x96: // RES 2, (HL)
 				{
 					byte val = _memory.readByte((_registers.H << 8) + _registers.L);
 					val &= ~0x4;
 					_memory.writeByte((_registers.H << 8) + _registers.L, val);
-					_registers.M = 4;
-					_registers.T = 16;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0x9E: // RES 3, (HL)
 				{
 					byte val = _memory.readByte((_registers.H << 8) + _registers.L);
 					val &= ~0x8;
 					_memory.writeByte((_registers.H << 8) + _registers.L, val);
-					_registers.M = 4;
-					_registers.T = 16;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0xA6: // RES 4, (HL)
 				{
 					byte val = _memory.readByte((_registers.H << 8) + _registers.L);
 					val &= ~0x10;
 					_memory.writeByte((_registers.H << 8) + _registers.L, val);
-					_registers.M = 4;
-					_registers.T = 16;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0xAE: // RES 5, (HL)
 				{
 					byte val = _memory.readByte((_registers.H << 8) + _registers.L);
 					val &= ~0x20;
 					_memory.writeByte((_registers.H << 8) + _registers.L, val);
-					_registers.M = 4;
-					_registers.T = 16;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0xB6: // RES 6, (HL)
 				{
 					byte val = _memory.readByte((_registers.H << 8) + _registers.L);
 					val &= ~0x40;
 					_memory.writeByte((_registers.H << 8) + _registers.L, val);
-					_registers.M = 4;
-					_registers.T = 16;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0xBE: // RES 7, (HL)
 				{
 					byte val = _memory.readByte((_registers.H << 8) + _registers.L);
 					val &= ~0x80;
 					_memory.writeByte((_registers.H << 8) + _registers.L, val);
-					_registers.M = 4;
-					_registers.T = 16;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0x11: // RL C
 				{
@@ -3581,74 +3934,128 @@ void Cpu::emulateCycle()
 					else
 						resetFlag(FLAG_Z);
 
-					_registers.M = 2;
-					_registers.T = 8;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				
 				// Sets
+				case 0xC0: // SET 0, B
+				{
+					_registers.B |= 0x01;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
+				} break;
+				case 0xC8: // SET 1, B
+				{
+					_registers.B |= 0x02;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
+				} break;
+				case 0xD0: // SET 2, B
+				{
+					_registers.B |= 0x04;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
+				} break;
+				case 0xD8: // SET 3, B
+				{
+					_registers.B |= 0x08;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
+				} break;
+				case 0xE0: // SET 4, B
+				{
+					_registers.B |= 0x10;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
+				} break;
+				case 0xE8: // SET 5, B
+				{
+					_registers.B |= 0x20;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
+				} break;
+				case 0xF0: // SET 6, B
+				{
+					_registers.B |= 0x40;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
+				} break;
+				case 0xF8: // SET 7, B
+				{
+					_registers.B |= 0x80;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
+				} break;
 				case 0xC6: // SET 0, (HL)
 				{
 					byte nextByte = _memory.readByte((_registers.H << 8) + _registers.L);
 					nextByte |= 0x01;
 					_memory.writeByte((_registers.H << 8) + _registers.L, nextByte);
-					_registers.M = 1;
-					_registers.T = 4;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0xCE: // SET 1, (HL)
 				{
 					byte nextByte = _memory.readByte((_registers.H << 8) + _registers.L);
 					nextByte |= 0x02;
 					_memory.writeByte((_registers.H << 8) + _registers.L, nextByte);
-					_registers.M = 1;
-					_registers.T = 4;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0xD6: // SET 2, (HL)
 				{
 					byte nextByte = _memory.readByte((_registers.H << 8) + _registers.L);
 					nextByte |= 0x04;
 					_memory.writeByte((_registers.H << 8) + _registers.L, nextByte);
-					_registers.M = 1;
-					_registers.T = 4;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0xDE: // SET 3, (HL)
 				{
 					byte nextByte = _memory.readByte((_registers.H << 8) + _registers.L);
 					nextByte |= 0x08;
 					_memory.writeByte((_registers.H << 8) + _registers.L, nextByte);
-					_registers.M = 1;
-					_registers.T = 4;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0xE6: // SET 4, (HL)
 				{
 					byte nextByte = _memory.readByte((_registers.H << 8) + _registers.L);
 					nextByte |= 0x10;
 					_memory.writeByte((_registers.H << 8) + _registers.L, nextByte);
-					_registers.M = 1;
-					_registers.T = 4;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0xEE: // SET 5, (HL)
 				{
 					byte nextByte = _memory.readByte((_registers.H << 8) + _registers.L);
 					nextByte |= 0x20;
 					_memory.writeByte((_registers.H << 8) + _registers.L, nextByte);
-					_registers.M = 1;
-					_registers.T = 4;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0xF6: // SET 6, (HL)
 				{
 					byte nextByte = _memory.readByte((_registers.H << 8) + _registers.L);
 					nextByte |= 0x40;
 					_memory.writeByte((_registers.H << 8) + _registers.L, nextByte);
-					_registers.M = 1;
-					_registers.T = 4;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 				} break;				
-				case 0xFE: // SET 7,(HL)
+				case 0xFE: // SET 7, (HL)
 				{
 					byte nextByte = _memory.readByte((_registers.H << 8) + _registers.L);
 					nextByte |= 0x80;
 					_memory.writeByte((_registers.H << 8) + _registers.L, nextByte);
-					_registers.M = 1;
-					_registers.T = 4;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
+				} break;
+				case 0xDB: // SET 3, E
+				{
+					_registers.E |= 0x08;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 
 				// Shifts
@@ -3670,8 +4077,8 @@ void Cpu::emulateCycle()
 					else
 						resetFlag(FLAG_Z);
 
-					_registers.M = 2;
-					_registers.T = 8;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0x20: // SLA B
 				{
@@ -3691,8 +4098,8 @@ void Cpu::emulateCycle()
 					else
 						resetFlag(FLAG_Z);
 
-					_registers.M = 2;
-					_registers.T = 8;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0x21: // SLA C
 				{
@@ -3712,8 +4119,8 @@ void Cpu::emulateCycle()
 					else
 						resetFlag(FLAG_Z);
 
-					_registers.M = 2;
-					_registers.T = 8;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0x22: // SLA D
 				{
@@ -3733,8 +4140,8 @@ void Cpu::emulateCycle()
 					else
 						resetFlag(FLAG_Z);
 
-					_registers.M = 2;
-					_registers.T = 8;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0x23: // SLA E
 				{
@@ -3754,8 +4161,8 @@ void Cpu::emulateCycle()
 					else
 						resetFlag(FLAG_Z);
 
-					_registers.M = 2;
-					_registers.T = 8;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0x24: // SLA H
 				{
@@ -3775,8 +4182,8 @@ void Cpu::emulateCycle()
 					else
 						resetFlag(FLAG_Z);
 
-					_registers.M = 2;
-					_registers.T = 8;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0x25: // SLA L
 				{
@@ -3796,8 +4203,8 @@ void Cpu::emulateCycle()
 					else
 						resetFlag(FLAG_Z);
 
-					_registers.M = 2;
-					_registers.T = 8;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0x3F: // SRL A
 				{
@@ -3820,8 +4227,8 @@ void Cpu::emulateCycle()
 					resetFlag(FLAG_N);
 					resetFlag(FLAG_H);
 
-					_registers.M = 2;
-					_registers.T = 8;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 
 				} break;
 
@@ -3846,8 +4253,8 @@ void Cpu::emulateCycle()
 					resetFlag(FLAG_N);
 					resetFlag(FLAG_H);
 
-					_registers.M = 2;
-					_registers.T = 8;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0x39: // SRL C
 				{
@@ -3870,8 +4277,8 @@ void Cpu::emulateCycle()
 					resetFlag(FLAG_N);
 					resetFlag(FLAG_H);
 
-					_registers.M = 2;
-					_registers.T = 8;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0x3A: // SRL D
 				{
@@ -3894,8 +4301,8 @@ void Cpu::emulateCycle()
 					resetFlag(FLAG_N);
 					resetFlag(FLAG_H);
 
-					_registers.M = 2;
-					_registers.T = 8;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0x3B: // SRL E
 				{
@@ -3918,8 +4325,8 @@ void Cpu::emulateCycle()
 					resetFlag(FLAG_N);
 					resetFlag(FLAG_H);
 
-					_registers.M = 2;
-					_registers.T = 8;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0x3C: // SRL H
 				{
@@ -3942,8 +4349,8 @@ void Cpu::emulateCycle()
 					resetFlag(FLAG_N);
 					resetFlag(FLAG_H);
 
-					_registers.M = 2;
-					_registers.T = 8;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0x3D: // SRL L
 				{
@@ -3966,8 +4373,8 @@ void Cpu::emulateCycle()
 					resetFlag(FLAG_N);
 					resetFlag(FLAG_H);
 
-					_registers.M = 2;
-					_registers.T = 8;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 
 				// Swaps
@@ -3985,8 +4392,8 @@ void Cpu::emulateCycle()
 					resetFlag(FLAG_C);
 					resetFlag(FLAG_N);
 
-					_registers.M = 2;
-					_registers.T = 8;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0x30: // SWAP B
 				{
@@ -4002,8 +4409,8 @@ void Cpu::emulateCycle()
 					resetFlag(FLAG_C);
 					resetFlag(FLAG_N);
 
-					_registers.M = 2;
-					_registers.T = 8;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0x31: // SWAP C
 				{
@@ -4019,8 +4426,8 @@ void Cpu::emulateCycle()
 					resetFlag(FLAG_C);
 					resetFlag(FLAG_N);
 
-					_registers.M = 2;
-					_registers.T = 8;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0x32: // SWAP D
 				{
@@ -4036,8 +4443,8 @@ void Cpu::emulateCycle()
 					resetFlag(FLAG_C);
 					resetFlag(FLAG_N);
 
-					_registers.M = 2;
-					_registers.T = 8;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0x33: // SWAP E
 				{
@@ -4053,8 +4460,8 @@ void Cpu::emulateCycle()
 					resetFlag(FLAG_C);
 					resetFlag(FLAG_N);
 
-					_registers.M = 2;
-					_registers.T = 8;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0x34: // SWAP H
 				{
@@ -4070,8 +4477,8 @@ void Cpu::emulateCycle()
 					resetFlag(FLAG_C);
 					resetFlag(FLAG_N);
 
-					_registers.M = 2;
-					_registers.T = 8;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0x35: // SWAP L
 				{
@@ -4087,8 +4494,8 @@ void Cpu::emulateCycle()
 					resetFlag(FLAG_C);
 					resetFlag(FLAG_N);
 
-					_registers.M = 2;
-					_registers.T = 8;
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 
 				default:
@@ -4110,6 +4517,11 @@ void Cpu::emulateCycle()
 	_internalT += _registers.T;	
 }
 
+void Cpu::handleInterrupts()
+{
+	
+}
+
 void Cpu::RST40()
 {
 	_registers.ime = 0;
@@ -4117,8 +4529,8 @@ void Cpu::RST40()
 	_memory.writeWord(_registers.sp, _registers.pc);
 
 	_registers.pc = INTERRUPT_HANDLER_VBLANK;
-	_registers.M = 3;
-	_registers.T = 12;
+	_registers.M = coreInstructionTicks[_opcode] / 2;
+	_registers.T = coreInstructionTicks[_opcode] * 2;
 
 	_internalM += _registers.M;
 	_internalT += _registers.T;
@@ -4131,8 +4543,8 @@ void Cpu::RST48()
 	_memory.writeWord(_registers.sp, _registers.pc);
 
 	_registers.pc = INTERRUPT_HANDLER_LCD;
-	_registers.M = 3;
-	_registers.T = 12;
+	_registers.M = coreInstructionTicks[_opcode] / 2;
+	_registers.T = coreInstructionTicks[_opcode] * 2;
 
 	_internalM += _registers.M;
 	_internalT += _registers.T;
@@ -4145,8 +4557,8 @@ void Cpu::RST50()
 	_memory.writeWord(_registers.sp, _registers.pc);
 
 	_registers.pc = INTERRUPT_HANDLER_TIMER;
-	_registers.M = 3;
-	_registers.T = 12;
+	_registers.M = coreInstructionTicks[_opcode] / 2;
+	_registers.T = coreInstructionTicks[_opcode] * 2;
 
 	_internalM += _registers.M;
 	_internalT += _registers.T;
@@ -4159,8 +4571,8 @@ void Cpu::RST58()
 	_memory.writeWord(_registers.sp, _registers.pc);
 
 	_registers.pc = INTERRUPT_HANDLER_SLINK;
-	_registers.M = 3;
-	_registers.T = 12;
+	_registers.M = coreInstructionTicks[_opcode] / 2;
+	_registers.T = coreInstructionTicks[_opcode] * 2;
 
 	_internalM += _registers.M;
 	_internalT += _registers.T;
@@ -4173,8 +4585,8 @@ void Cpu::RST60()
 	_memory.writeWord(_registers.sp, _registers.pc);
 
 	_registers.pc = INTERRUPT_HANDLER_JOYPAD;
-	_registers.M = 3;
-	_registers.T = 12;
+	_registers.M = coreInstructionTicks[_opcode] / 2;
+	_registers.T = coreInstructionTicks[_opcode] * 2;
 
 	_internalM += _registers.M;
 	_internalT += _registers.T;
@@ -4225,7 +4637,7 @@ const timer_t* Cpu::getT() const { return &_registers.T; }
 
 bool Cpu::isFlagSet(const byte flag) const { return (_registers.F & flag) != 0; }
 byte Cpu::getFlag(const byte flag) const { return (_registers.F & flag) != 0 ? 0x1 : 0x0; }
-
+byte Cpu::getLastExecutedOpcode() const { return _opcode; }
 byte Cpu::getIME() const { return _registers.ime; }
 
 void Cpu::setFlag(const byte flag)   { _registers.F |= flag; }

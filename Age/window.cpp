@@ -55,7 +55,7 @@ void Window::setTextureFromSurface(SDL_Surface* surface)
 
 void Window::render()
 {
-	SDL_SetRenderDrawColor(_rendererHandle, 0xFF, 0xFF, 0xFF, 0xFF);
+	SDL_SetRenderDrawColor(_rendererHandle, 0xE0, 0xF8, 0xD0, 0xFF);
 	SDL_RenderClear(_rendererHandle);
 
 	if (_currTexture)

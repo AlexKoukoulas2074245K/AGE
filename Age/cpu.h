@@ -8,6 +8,7 @@ public:
 	Cpu(Memory&);
 
 	void emulateCycle();
+	void handleInterrupts();
 
 	void resetCpu();
 	void printRegisters();
@@ -17,7 +18,7 @@ public:
 
 	bool isFlagSet(const byte flag) const;
 	byte getFlag(const byte flag) const;
-
+	byte getLastExecutedOpcode() const;
 	byte getIME() const;
 
 	void RST40();

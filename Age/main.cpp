@@ -15,7 +15,9 @@
 
 #include <memory>
 
-#define CURR_ADDRESS_TO_BREAK 0x2B6A
+//#define CURR_ADDRESS_TO_BREAK 0x1FFA
+//#define CURR_ADDRESS_TO_BREAK 0x02C6
+#define CURR_ADDRESS_TO_BREAK 0x20BD
 
 static const char* DEBUG_FLAG = "-d";
 
@@ -116,7 +118,6 @@ int main(int argc, char* argv[])
 		}
 	}
 
-
 	// Initialize SDL
 	// TODO: Handle Errors
 	SDL_Init(SDL_INIT_EVERYTHING);
@@ -149,6 +150,10 @@ int main(int argc, char* argv[])
 	bool spacePressed = false;
 	bool spacePressed0 = false;
 	
+	word pcHistory[1000];
+	word pcHistoryIndex = 0;
+	
+
 	int i = 0;
 	while(running)
 	{
@@ -195,25 +200,24 @@ int main(int argc, char* argv[])
 			}
 		}
 		
-		if (*cpu.getPC() == CURR_ADDRESS_TO_BREAK &&
-			(*cpu.getPC() < 0x0095 || *cpu.getPC() > 0x0343))
+		static int yes = false;
+		if (*cpu.getPC() == CURR_ADDRESS_TO_BREAK)
 		{			
+			yes = true;
 			shouldPrint = true;
 		}
-		if (i == 2 && *cpu.getPC() == 0x0463)
-		{
-			shouldPrint = true;
-		}
-		if (i == 2 && *cpu.getPC() == 0xFFB6)
-		{
-			shouldPrint = true;
-		}
+
 		if (spacePressed && !spacePressed0) 
 			shouldPrint = !shouldPrint;
 
 		cpu.emulateCycle();
-		display.emulateGameboyDisplay();
-	
+		pcHistory[pcHistoryIndex] = *cpu.getPC();
+		if (pcHistory[pcHistoryIndex] == pcHistory[pcHistoryIndex-1])
+		{
+			const auto b = false;
+		}
+		pcHistoryIndex = (pcHistoryIndex + 1) % 1000;
+		cpu.handleInterrupts();
 		if (cpu.getIME() && memory.getIE() && memory.getIF())
 		{
 			byte maskedInterrupts = memory.getIE() & memory.getIF();
@@ -244,10 +248,12 @@ int main(int argc, char* argv[])
 				cpu.RST60();
 			}
 		}
+		display.emulateGameboyDisplay();
+	
 
 #if defined (_DEBUG) || defined (DEBUG)
 		if (shouldPrint)
-			//cpu.printRegisters();
+//			cpu.printRegisters();
 #endif
 
 		spacePressed0 = spacePressed;
