@@ -38,6 +38,8 @@ private:
 
 	void resetFlag(const byte flag);
 	void setFlag(const byte flag);
+	void incrementTimer();
+	void stepTimer();
 
 private:
 	enum error_state
@@ -56,7 +58,11 @@ private:
 
 private:
 	registers   _registers;
+	bool        _halted;
 	timer_t     _internalM, _internalT;
+	byte        _clockSub;
+	byte        _clockDiv;
+	byte        _clockMain;
 	byte        _opcode;
 	byte        _isBitOpcode;
 	error_state _errorState;

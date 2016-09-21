@@ -35,12 +35,16 @@ Memory::Memory(Display& displayRef, Input& inputRef)
 	, _if(0)
 {
 	resetMemory();
-	_displayRef.setVramRef(_vram);
-	_displayRef.setIFRef(&_if);
+	_displayRef.setMemory(this);
+}
+
+Memory::~Memory()
+{
+	const auto b = false;
 }
 
 byte Memory::readByte(const word addr)
-{
+{	
 	switch (addr & 0xF000)
 	{
 		// BIOS 256 (ROM0)
@@ -70,8 +74,8 @@ byte Memory::readByte(const word addr)
 		case 0x5000:
 		case 0x6000:
 		case 0x7000:
-		{
-			return _rom[addr];
+		{			
+			return _rom[_mbcState.ROMOffset + (addr & 0x3FFF)];
 		} break;
 
 		// VRAM (8k)
@@ -85,7 +89,7 @@ byte Memory::readByte(const word addr)
 		case 0xA000:
 		case 0xB000:
 		{
-			return _eram[addr & 0x1FFF];
+			return _eram[_mbcState.RAMOffset + (addr & 0x1FFF)];
 		} break;
 
 		// WRAM (8k)
@@ -123,11 +127,10 @@ byte Memory::readByte(const word addr)
 						}
 						else if (addr == 0xFF04)
 						{							
-							return (byte)std::rand() % 0xFF;
+							return _iomem[addr & 0x7F];
 						}
 						else if (addr == 0xFF05 || addr == 0xFF06 || addr == 0xFF07)
-						{
-							//std::cout << "At: 0x" << std::hex << *_pcref << " unimplemented timer register read " << std::hex << addr << " reading from iom instead" << std::endl;
+						{							
 							return _iomem[addr & 0x7F];
 						}
 						else if (addr == 0xFF0F)
@@ -161,45 +164,122 @@ word Memory::readWord(const word addr)
 	return readByte(addr) + (readByte(addr + 1) << 8);
 }
 
+byte Memory::retrieveFromVram(const word addr)
+{
+	return _vram[addr];
+}
+
 void Memory::writeByte(const word addr, const byte val)
 {
+	
+	if (_cartType != 0)
+	{
+		switch (addr & 0xF000)
+		{
+			// ERAM Switch
+			case 0x0000:
+			case 0x1000:
+			{
+				if (_cartType == 0x2 ||
+					_cartType == 0x3)
+				{
+					_mbcState.RAMEnabled = val == 0x0A;
+				}
+			} break;
+			
+			// MBC1: ROM Bank
+			case 0x2000:
+			case 0x3000:
+			{
+				switch (_cartType)
+				{
+					case 0x1:
+					case 0x2:
+					case 0x3:
+					{
+						byte lo5 = val & 0x1F;
+
+						if (!lo5)
+							lo5 = 1;
+
+						_mbcState.ROMBank = (_mbcState.ROMBank & 0x60) + lo5;
+						word prevOffset = _mbcState.ROMOffset;
+						_mbcState.ROMOffset = _mbcState.ROMBank * 0x4000;				
+
+						if (prevOffset != _mbcState.ROMOffset)
+						{
+							std::cout << "Rom bank: " << (int)_mbcState.ROMBank << std::endl;
+						}
+
+					} break;
+				}
+			} break;
+
+			// MBC1: RAM Bank
+			case 0x4000:
+			case 0x5000:
+			{
+				switch (_cartType)
+				{
+					case 0x1:
+					case 0x2:
+					case 0x3:
+					{
+						if (_mbcState.mode)
+						{
+							// RAM mode: Set Bank (0-3)
+							_mbcState.RAMBank = val & 0x3;
+							_mbcState.RAMOffset = _mbcState.RAMBank * 0x2000;
+							std::cout << "Ram bank: " << (int)_mbcState.RAMBank << std::endl;
+						}
+						else
+						{
+							// ROM mode: Set High bits of bank
+							_mbcState.ROMBank = (_mbcState.ROMBank & 0x1F) + ((val & 0x3) << 5);
+							_mbcState.ROMOffset = _mbcState.ROMBank * 0x4000;
+							std::cout << "Rom bank: " << (int)_mbcState.ROMBank << std::endl;
+						}
+					} break;
+				} 
+			} break;
+
+			// MBC1: Mode switch
+			case 0x6000:
+			case 0x7000:
+			{
+				switch (_cartType)
+				{
+					case 2:
+					case 3:
+					{
+						_mbcState.mode = (val & 0x1) == 1;
+					} break;
+				}
+			} break;
+
+			// External 
+			case 0xA000:
+			case 0xB000:
+			{				
+				_eram[_mbcState.RAMOffset + (addr & 0x1FFF)] = val;
+			} break;
+
+			default: normalWriteByte(addr, val);
+		}
+	}
+	else
+	{
+		normalWriteByte(addr, val);
+	}
+}
+
+void Memory::normalWriteByte(const word addr, const byte val)
+{
+	if (addr == 0xC000 && val == 0x4C)
+		const auto b = false;
+
 	switch (addr & 0xF000)
 	{
-		// BIOS 256 (ROM0)
-		case 0x0000:
-		{
-			if (_inbios == 1)
-			{
-				if (addr < 0x0100)
-					_bios[addr] = val;
-				if (*_pcref >= 0x0100)
-					_inbios = 0;				
-			}
-			else
-			{
-				const auto b = false;
-				_rom[addr] = val;
-			}
-		} break;
-
-		// ROM 0 (16k)
-		case 0x1000:
-		case 0x2000:
-		case 0x3000:
-		{
-			const auto b = false;
-			//_rom[addr] = val;
-		} break;
-
-		// ROM 1 (16k)
-		case 0x4000:
-		case 0x5000:
-		case 0x6000:
-		case 0x7000:
-		{
-			_rom[addr] = val;
-		} break;
-
 		// VRAM (8k)
 		case 0x8000:
 		case 0x9000:
@@ -224,13 +304,6 @@ void Memory::writeByte(const word addr, const byte val)
 				_displayRef.changeTileData(tile, x, y, color);
 			}
 			
-		} break;
-
-		// ERAM (8k)
-		case 0xA000:
-		case 0xB000:
-		{
-			_eram[addr & 0x1FFF] = val;
 		} break;
 
 		// WRAM (8k)
@@ -275,11 +348,10 @@ void Memory::writeByte(const word addr, const byte val)
 						}
 						else if (addr == 0xFF04)
 						{							
-							_iomem[addr & 0x7F] = val;
+							_iomem[addr & 0x7F] = 0;
 						}
 						else if (addr == 0xFF05 || addr == 0xFF06 || addr == 0xFF07)
-						{
-							std::cout << "At: 0x" << std::hex << *_pcref << " unimplemented timer register write " << std::hex << addr << " dumping to iom instead" << std::endl;
+						{							
 							_iomem[addr & 0x7F] = val;
 						}
 						else if (addr == 0xFF0F)
@@ -288,7 +360,7 @@ void Memory::writeByte(const word addr, const byte val)
 					case 0x40:
 					{
 						if (addr == 0xFF4a || addr == 0xFF4b)
-							_iomem[addr & 0x7F] = val;
+							_iomem[addr & 0x7F] = val;						
 						else if (addr == 0xFF46)
 							for (byte i = 0; i < 160; ++i)
 							{
@@ -319,14 +391,24 @@ void Memory::writeWord(const word addr, const word val)
 	writeByte(addr + 1, val >> 8);
 }
 
+void Memory::incrementDiv()
+{
+	_iomem[0x04]++;
+}
+
+bool Memory::inBios() const { return _inbios != 0; }
 byte Memory::getIE() const { return _ie; }
 byte Memory::getIF() const { return _if; }
+byte* Memory::getIEPtr() { return &_ie; }
 byte* Memory::getIFPtr() { return &_if; }
+
 void Memory::resetInterrupt(const byte interrupt) { _if &= ~interrupt; }
 
 void Memory::fillRom(const std::vector<char>& romData)
 {
 	memcpy(_rom, &romData[0], romData.size());
+	_cartType = _rom[0x0147];
+	initMBC();
 }
 
 void Memory::setPcRef(const word* pcref) { _pcref = pcref; }
@@ -334,13 +416,12 @@ void Memory::setPcRef(const word* pcref) { _pcref = pcref; }
 void Memory::resetMemory()
 {
 	_inbios = 1;
-
-	memcpy(_bios, i_bios, sizeof(_bios));
-	memset(_rom,   0, sizeof(_rom));
-	memset(_vram,  0, sizeof(_vram));
-	memset(_eram,  0, sizeof(_eram));
+	
+	memcpy(_bios, i_bios, sizeof(_bios));	
+	memset(_vram,  0, sizeof(_vram));	
 	memset(_wram,  0, sizeof(_wram));
 	memset(_oam,   0, sizeof(_oam));
+	memset(_eram,  0, sizeof(_eram));
 	memset(_iomem, 0, sizeof(_iomem));
 	memset(_zram,  0, sizeof(_zram));
 
@@ -348,4 +429,21 @@ void Memory::resetMemory()
 	_if = 0;
 
 	std::srand((unsigned int)std::time(NULL));
+}
+
+void Memory::initMBC()
+{
+	switch (_cartType)
+	{
+		case 0x0:
+		case 0x1: 
+		{
+			_mbcState.RAMBank    = 0;
+			_mbcState.ROMBank    = 0;
+			_mbcState.RAMEnabled = false;
+			_mbcState.mode       = false;
+			_mbcState.ROMOffset  = 0x4000;
+			_mbcState.RAMOffset  = 0x0000;
+		} break;
+	}
 }

@@ -17,7 +17,7 @@
 
 //#define CURR_ADDRESS_TO_BREAK 0x1FFA
 //#define CURR_ADDRESS_TO_BREAK 0x02C6
-#define CURR_ADDRESS_TO_BREAK 0x20BD
+#define CURR_ADDRESS_TO_BREAK 0x0040
 
 static const char* DEBUG_FLAG = "-d";
 
@@ -150,10 +150,9 @@ int main(int argc, char* argv[])
 	bool spacePressed = false;
 	bool spacePressed0 = false;
 	
-	word pcHistory[1000];
+	word pcHistory[10000];
 	word pcHistoryIndex = 0;
 	
-
 	int i = 0;
 	while(running)
 	{
@@ -200,11 +199,13 @@ int main(int argc, char* argv[])
 			}
 		}
 		
-		static int yes = false;
-		if (*cpu.getPC() == CURR_ADDRESS_TO_BREAK)
+		static int i = 0;
+		if (*cpu.getPC() == 0x02b5)
+			i = 1;
+
+		if (*cpu.getPC() == CURR_ADDRESS_TO_BREAK && i == 1)
 		{			
-			yes = true;
-			shouldPrint = true;
+			//shouldPrint = true;
 		}
 
 		if (spacePressed && !spacePressed0) 
@@ -216,44 +217,14 @@ int main(int argc, char* argv[])
 		{
 			const auto b = false;
 		}
-		pcHistoryIndex = (pcHistoryIndex + 1) % 1000;
+		pcHistoryIndex = (pcHistoryIndex + 1) % 10000;
 		cpu.handleInterrupts();
-		if (cpu.getIME() && memory.getIE() && memory.getIF())
-		{
-			byte maskedInterrupts = memory.getIE() & memory.getIF();
-
-			if ((maskedInterrupts & Memory::INTERRUPT_FLAG_VBLANK) != 0)
-			{
-				memory.resetInterrupt(Memory::INTERRUPT_FLAG_VBLANK);
-				cpu.RST40();
-			}
-			else if ((maskedInterrupts & Memory::INTERRUPT_FLAG_TOGGLELCD) != 0)
-			{
-				memory.resetInterrupt(Memory::INTERRUPT_FLAG_TOGGLELCD);
-				cpu.RST48();
-			}
-			else if ((maskedInterrupts & Memory::INTERRUPT_FLAG_TIMER) != 0)
-			{
-				memory.resetInterrupt(Memory::INTERRUPT_FLAG_TIMER);
-				cpu.RST50();
-			}
-			else if ((maskedInterrupts & Memory::INTERRUPT_FLAG_SERIAL) != 0)
-			{
-				memory.resetInterrupt(Memory::INTERRUPT_FLAG_SERIAL);
-				cpu.RST58();
-			}
-			else if ((maskedInterrupts & Memory::INTERRUPT_FLAG_JOYPAD) != 0)
-			{
-				memory.resetInterrupt(Memory::INTERRUPT_FLAG_JOYPAD);
-				cpu.RST60();
-			}
-		}
 		display.emulateGameboyDisplay();
 	
 
 #if defined (_DEBUG) || defined (DEBUG)
 		if (shouldPrint)
-//			cpu.printRegisters();
+			cpu.printRegisters();
 #endif
 
 		spacePressed0 = spacePressed;
@@ -268,6 +239,6 @@ int main(int argc, char* argv[])
 		if (spriteView && spriteView->isDestroyed()) 
 			spriteView = nullptr;
 	}
-
+	
 	return 0;
 }

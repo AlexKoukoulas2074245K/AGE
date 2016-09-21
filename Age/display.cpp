@@ -45,6 +45,7 @@ Display::Display(fill_displays_callback_t fillDisplayCallback)
 	, _statRegister(0)
 	, _displayScrollX(0)
 	, _displayScrollY(0)
+	, _displayLYC(0)
 	, _fillDisplayCallback(fillDisplayCallback)
 {
 	resetDisplay();
@@ -59,6 +60,7 @@ byte Display::readByte(const word addr)
 		case 0xFF42: return _displayScrollY; break;
 		case 0xFF43: return _displayScrollX; break;
 		case 0xFF44: return _displayLine; break;
+		case 0xFF45: return _displayLYC; break;
 		default:
 			std::cout << " unimplemented display read at 0x" << std::hex << addr << std::endl;
 	}
@@ -73,6 +75,7 @@ void Display::writeByte(const word addr, const byte val)
 		case 0xFF41: _statRegister = val; break;
 		case 0xFF42: _displayScrollY = val; break;
 		case 0xFF43: _displayScrollX = val; break;
+		case 0xFF45: _displayLYC = val; break;
 		case 0xFF47: 
 		{
 #ifdef PALETTE_SHIFT_ENABLED
@@ -164,14 +167,9 @@ void Display::setZ80TimeRegister(const timer_t* T)
 	_z80Time = T;
 }
 
-void Display::setIFRef(byte* intFlag)
+void Display::setMemory(Memory* const memory)
 {
-	_intFlag = intFlag;
-}
-
-void Display::setVramRef(byte* vram)
-{
-	_vramRef = vram;
+	_memory = memory;
 }
 
 void Display::emulateGameboyDisplay()
@@ -184,16 +182,21 @@ void Display::emulateGameboyDisplay()
 		{
 			if (_displayClock >= HBLANK_TIME)
 			{
-				_displayClock = 0;
+				_displayClock -= HBLANK_TIME;
 				++_displayLine;
+				compareLYToLYC();
 
-				if (_displayLine == DISPLAY_ROWS - 1)
+				if (_displayLine == DISPLAY_ROWS)
 				{
 					_displayMode = DISPLAY_MODE_VBLANK;
 					fillTileViewGfx();
 					fillSpriteViewGfx();
 					_fillDisplayCallback(_gfx, _tileGfx, _spriteGfx);
-					*_intFlag |= Memory::INTERRUPT_FLAG_VBLANK;
+
+					if (_statRegister & 0x10)
+						*(_memory->getIFPtr()) |= Memory::INTERRUPT_FLAG_TOGGLELCD;
+						
+					*(_memory->getIFPtr()) |= Memory::INTERRUPT_FLAG_VBLANK;
 				}
 				else
 				{
@@ -206,8 +209,9 @@ void Display::emulateGameboyDisplay()
 		{
 			if (_displayClock >= HBLANK_TIME + OAM_ACCESS_TIME + VRAM_ACCESS_TIME)
 			{
-				_displayClock = 0;
+				_displayClock -= HBLANK_TIME + OAM_ACCESS_TIME + VRAM_ACCESS_TIME;
 				_displayLine++;
+				compareLYToLYC();
 
 				if (_displayLine > 153)
 				{
@@ -221,8 +225,9 @@ void Display::emulateGameboyDisplay()
 		{
 			if (_displayClock >= OAM_ACCESS_TIME)
 			{
-				_displayClock = 0;
+				_displayClock -= OAM_ACCESS_TIME;
 				_displayMode = DISPLAY_MODE_VRAM_READ;
+				updateStat();
 			}
 		} break;
 
@@ -230,13 +235,13 @@ void Display::emulateGameboyDisplay()
 		{
 			if (_displayClock >= VRAM_ACCESS_TIME)
 			{
-				_displayClock = 0;
+				_displayClock -= VRAM_ACCESS_TIME;
 				_displayMode = DISPLAY_MODE_HBLANK;
 
 				renderScanline();
 			}
 		} break;
-	}
+	} 
 }
 
 void Display::changeSpriteData(const word addr, const byte val)
@@ -291,9 +296,10 @@ void Display::renderScanline()
 		int x = _displayScrollX & 7;
 
 		int displayOffset = _displayLine * DISPLAY_COLS * DISPLAY_DEPTH;
-		int tileIndex = _vramRef[mapOffset + lineOffset];
+		int tileIndex = _memory->retrieveFromVram(mapOffset + lineOffset);
 	
-		//if (isControlFlagSet(DISPLAY_CONTROL_FLAG_BKGTS) && tileIndex < 128) tileIndex += 256;
+		if (!isControlFlagSet(DISPLAY_CONTROL_FLAG_BKGTS) && tileIndex < 128)
+			tileIndex += 256;
 
 		for (size_t i = 0; i < DISPLAY_COLS; ++i)
 		{
@@ -312,8 +318,9 @@ void Display::renderScanline()
 			{
 				x = 0;
 				lineOffset = (lineOffset + 1) & 31;
-				tileIndex  = _vramRef[mapOffset + lineOffset]; 
-				//if (isControlFlagSet(DISPLAY_CONTROL_FLAG_BKGTS) && tileIndex < 128) tileIndex += 256;
+				tileIndex  = _memory->retrieveFromVram(mapOffset + lineOffset); 
+				if (!isControlFlagSet(DISPLAY_CONTROL_FLAG_BKGTS) && tileIndex < 128)
+					tileIndex += 256;
 			}
 		}	
 	}
@@ -325,9 +332,10 @@ void Display::renderScanline()
 			sprite_data sd = _spriteData[i];
 			int sx = sd.x;
 			int sy = sd.y;
+			byte spriteHeight = isControlFlagSet(DISPLAY_CONTROL_FLAG_SSIZE) ? 16 : 8;
 
 			// Check if the sprite falls on this scanline
-			if (sy <= _displayLine && (sy + 8) > _displayLine)
+			if (sy <= _displayLine && (sy + spriteHeight) > _displayLine)
 			{
 				dword* spritePalette = isSpriteFlagSet(i, SPRITE_FLAG_PALETTE) ? _spr1Palette : _spr0Palette;
 				spritePalette = _bkgPalette;
@@ -355,9 +363,56 @@ void Display::renderScanline()
 							emucol = spritePalette[tileRow[x]];
 						else
 							emucol = spritePalette[tileRow[7 - x]];
-						
 
-						_gfx[displayOffset]     = (emucol & 0x000000FF) >> 0;
+						if (emucol == 0)
+							continue;
+
+						_gfx[displayOffset] = (emucol & 0x000000FF) >> 0;
+						_gfx[displayOffset + 1] = (emucol & 0x0000FF00) >> 8;
+						_gfx[displayOffset + 2] = (emucol & 0x00FF0000) >> 16;
+						_gfx[displayOffset + 3] = (emucol & 0xFF000000) >> 24;
+
+						displayOffset += 4;
+					}
+				}
+			}
+
+			if (isControlFlagSet(DISPLAY_CONTROL_FLAG_SSIZE))
+			{
+				if (_displayLine + 8 >= DISPLAY_ROWS || sd.tile + 1 > DISPLAY_TILES - 1)
+					continue;
+
+				dword* spritePalette = isSpriteFlagSet(i, SPRITE_FLAG_PALETTE) ? _spr1Palette : _spr0Palette;
+				spritePalette = _bkgPalette;
+				int displayOffset = ((_displayLine + 8) * 160 + sx) * 4;
+
+				byte* tileRow;
+
+				if (isSpriteFlagSet(i, SPRITE_FLAG_Y_FLIP))
+					tileRow = _tileset[sd.tile + 1][7 - (_displayLine - sy)];
+				else
+					tileRow = _tileset[sd.tile + 1][_displayLine - sy];
+
+				for (size_t x = 0; x < 8; ++x)
+				{
+					// If pixel is still on screen &&
+					// its not transparent (color 0) &&
+					// (if the sprite has prio || shows under bg)
+					// then render it
+					// TODO: fix prio
+					if ((sx + x) >= 0 && (sx + x) < 160 && (true || scanRow[sx + x] == 0))
+					{
+						// If X flip is set reverse pixel write						
+						dword emucol = 0;
+						if (!isSpriteFlagSet(i, SPRITE_FLAG_X_FLIP))
+							emucol = spritePalette[tileRow[x]];
+						else
+							emucol = spritePalette[tileRow[7 - x]];
+
+						if (emucol == 0)
+							continue;
+
+						_gfx[displayOffset] = (emucol & 0x000000FF) >> 0;
 						_gfx[displayOffset + 1] = (emucol & 0x0000FF00) >> 8;
 						_gfx[displayOffset + 2] = (emucol & 0x00FF0000) >> 16;
 						_gfx[displayOffset + 3] = (emucol & 0xFF000000) >> 24;
@@ -375,9 +430,19 @@ void Display::fillTileViewGfx()
 	std::unordered_set<int> selectedTiles;
 
 #ifdef SHOW_SELECTED_TILES
-	for (int i = 0x9800; i <= 0x9BFF; ++i)
+	if (isControlFlagSet(DISPLAY_CONTROL_FLAG_BKGTM))
 	{
-		selectedTiles.insert(_vramRef[i - 0x8000]);
+		for (int i = 0x9C00; i <= 0x9FFF; ++i)
+		{
+			selectedTiles.insert(_memory->retrieveFromVram(i - 0x8000));
+		}
+	}
+	else
+	{
+		for (int i = 0x9800; i <= 0x9BFF; ++i)
+		{
+			selectedTiles.insert(_memory->retrieveFromVram(i - 0x8000));
+		}
 	}
 #endif
 
@@ -392,11 +457,9 @@ void Display::fillTileViewGfx()
 			dword emucol = _bkgPalette[_tileset[tileIndex][y % DISPLAY_TILE_ROWS][x % DISPLAY_TILE_COLS]];
 	
 #ifdef SHOW_SELECTED_TILES
-			if ((emulatedColor.r == 0xF8 ||
-				emulatedColor.g == 0xA8) &&
-				selectedTiles.count(tileIndex))
+			if (emucol == COLOR_0 && selectedTiles.count(tileIndex))
 			{
-				emulatedColor = {0x00, 0xFF, 0x00, 0xFF};
+				emucol = 0xFF00FF00;
 			}
 #endif
 
@@ -459,4 +522,29 @@ bool Display::isSpriteFlagSet(const byte spriteIndex, const byte flag) const
 void Display::setSpriteFlag(const byte spriteIndex, const byte flag)
 {
 	_spriteData[spriteIndex].flags |= flag;
+}
+
+void Display::compareLYToLYC()
+{
+	/*
+	if (isControlFlagSet(DISPLAY_CONTROL_FLAG_DISPL))
+	{
+		if (_displayLYC == _displayLine)
+		{
+			_statRegister |= 0x04;
+
+			if (_statRegister & 0x40)
+				*_intFlag |= Memory::INTERRUPT_FLAG_TOGGLELCD;
+		}
+		else
+		{
+			_statRegister &= ~0x04;
+		}
+	}
+	*/
+}
+
+void Display::updateStat()
+{
+	//_statRegister = (_statRegister & 0xFC) | (static_cast<byte>(_displayMode) & 0x3);
 }

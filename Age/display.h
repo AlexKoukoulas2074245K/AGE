@@ -6,6 +6,7 @@
 #include <memory>
 
 class Window;
+class Memory;
 class Display final
 {
 public:
@@ -42,8 +43,7 @@ public:
 	void resetDisplay();
 	
 	void setZ80TimeRegister(const timer_t* T);
-	void setIFRef(byte* intFlag);
-	void setVramRef(byte* vram);
+	void setMemory(Memory* const memory);
 
 	void emulateGameboyDisplay();
 	void changeSpriteData(const word addr, const byte val);
@@ -51,6 +51,8 @@ public:
 	void printSpriteData(const int mouseX, const int mouseY);
 
 private:
+	void compareLYToLYC();
+	void updateStat();
 	void renderScanline();
 	void fillTileViewGfx();
 	void fillSpriteViewGfx();
@@ -81,14 +83,14 @@ private:
 	dword _spr1Palette[4];
 
 	const timer_t* _z80Time;
-	byte*          _vramRef;
-	byte*          _intFlag;
+	Memory* _memory;
 
 	display_mode   _displayMode;
 	timer_t        _displayClock;
 	byte           _displayLine;
 	byte           _displayScrollX;
 	byte           _displayScrollY;
+	byte           _displayLYC;	
 	byte           _displayControlRegister;
 	byte           _statRegister;
 
