@@ -315,6 +315,95 @@ void Display::printSpriteData(const int mouseX, const int mouseY)
 
 void Display::renderScanline()
 {	
+	/*
+	if (isControlFlagSet(DISPLAY_CONTROL_FLAG_WINDOW))
+	{
+		if (_displayWindowX != 0 || _displayWindowY != 0)
+			std::cout << std::dec << _displayWindowX << ", " << std::dec << _displayWindowY << std::endl;
+		//std::cout << std::dec << (int)_displayWindowX << ", " << std::dec << (int)_displayWindowY << std::endl;
+		int mapOffset = isControlFlagSet(DISPLAY_CONTROL_FLAG_WINTM) ? 0x1C00 : 0x1800;
+
+		mapOffset += (((_displayLine + 0) & 0xFF) >> 3) << 5;
+
+		int lineOffset = 0 >> 3;
+
+		int y = (_displayLine + 0) & 7;
+		int x = 0 & 7;
+
+		int displayOffset = _displayLine * DISPLAY_COLS * DISPLAY_DEPTH;
+		int tileIndex = _memory->retrieveFromVram(mapOffset + lineOffset);
+
+		if (!isControlFlagSet(DISPLAY_CONTROL_FLAG_TS) && tileIndex < 128)
+			tileIndex += 256;
+
+		for (size_t i = 0; i < DISPLAY_COLS; ++i)
+		{
+			byte col = (_tileset[tileIndex][y][x] & 0x3);
+
+			dword emucol = _bkgPalette[col];
+			
+			_gfx[displayOffset] = (emucol & 0x000000FF) >> 0;
+			_gfx[displayOffset + 1] = (emucol & 0x0000FF00) >> 8;
+			_gfx[displayOffset + 2] = (emucol & 0x00FF0000) >> 16;
+			_gfx[displayOffset + 3] = (emucol & 0xFF000000) >> 24;
+			displayOffset += 4;
+
+			if (++x == 8)
+			{
+				x = 0;
+				lineOffset = (lineOffset + 1) & 31;
+				tileIndex = _memory->retrieveFromVram(mapOffset + lineOffset);
+				if (!isControlFlagSet(DISPLAY_CONTROL_FLAG_TS) && tileIndex < 128)
+					tileIndex += 256;
+			}
+		}
+	}
+
+	if (isControlFlagSet(DISPLAY_CONTROL_FLAG_BKG))
+	{
+		int mapOffset = isControlFlagSet(DISPLAY_CONTROL_FLAG_BKGTM) ? 0x1C00 : 0x1800;
+
+		mapOffset += (((_displayLine + _displayScrollY) & 0xFF) >> 3) << 5;
+
+		int lineOffset = _displayScrollX >> 3;
+
+		int y = (_displayLine + _displayScrollY) & 7;
+		int x = _displayScrollX & 7;
+
+		int displayOffset = _displayLine * DISPLAY_COLS * DISPLAY_DEPTH;
+		int tileIndex = _memory->retrieveFromVram(mapOffset + lineOffset);
+
+		if (!isControlFlagSet(DISPLAY_CONTROL_FLAG_TS) && tileIndex < 128)
+			tileIndex += 256;
+
+		for (size_t i = 0; i < DISPLAY_COLS; ++i)
+		{
+			byte col = (_tileset[tileIndex][y][x] & 0x3);
+
+			dword emucol = _bkgPalette[col];
+
+			if (emucol != COLOR_0)
+			{
+				_gfx[displayOffset] = (emucol & 0x000000FF) >> 0;
+				_gfx[displayOffset + 1] = (emucol & 0x0000FF00) >> 8;
+				_gfx[displayOffset + 2] = (emucol & 0x00FF0000) >> 16;
+				_gfx[displayOffset + 3] = (emucol & 0xFF000000) >> 24;			
+			}
+
+			displayOffset += 4;
+
+			if (++x == 8)
+			{
+				x = 0;
+				lineOffset = (lineOffset + 1) & 31;
+				tileIndex = _memory->retrieveFromVram(mapOffset + lineOffset);
+				if (!isControlFlagSet(DISPLAY_CONTROL_FLAG_TS) && tileIndex < 128)
+					tileIndex += 256;
+			}
+		}
+	}
+	*/
+
 	word tileData = 0;
 	word backgroundMemory = 0;
 	bool unsign= true;

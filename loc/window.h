@@ -27,7 +27,6 @@ public:
 	word getHeight() const;
 	int getID() const;
 	SDL_Renderer* getRendererHandle() const;
-	SDL_Window* getWindowHandle() const;
 
 	void handleEvent(const SDL_Event& e);
 	void render();

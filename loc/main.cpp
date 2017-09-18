@@ -18,7 +18,7 @@
 
 //#define CURR_ADDRESS_TO_BREAK 0x1FFA
 //#define CURR_ADDRESS_TO_BREAK 0x02C6
-#define CURR_ADDRESS_TO_BREAK 0xC2A6
+#define CURR_ADDRESS_TO_BREAK 0x3E88
 
 static const char* DEBUG_FLAG = "-d";
 
@@ -65,8 +65,6 @@ void fillDisplay(byte* gfxData, byte* tileGfx, byte* spriteGfx)
 	mainView->render();
 
 	// Fill graphics and render tile view
-
-#if defined(DEBUG) || defined(_DEBUG)
 	if (tileView)
 	{
 		SDL_FreeSurface(tileViewSurface);
@@ -101,23 +99,40 @@ void fillDisplay(byte* gfxData, byte* tileGfx, byte* spriteGfx)
 		spriteView->setTextureFromSurface(spriteViewSurface);
 		spriteView->render();
 	}
-#endif
 }
 
 int main(int argc, char* argv[])
-{	
+{
+	// Parse Arguments
+	if (argc < 2)
+	{
+		std::cout << "Usage: <rom_file_path> [-d] (debug mode)" << std::endl;
+		return -1;
+	}
+
+	bool debugFlag = false;
+	if (argc > 2)
+	{
+		for (size_t i = 2; i < static_cast<size_t>(argc); ++i)
+		{	
+			debugFlag = strcmp(argv[i], DEBUG_FLAG) == 0;
+		}
+	}
+
 	// Initialize SDL
 	// TODO: Handle Errors
 	SDL_Init(SDL_INIT_EVERYTHING);
-	SDL_EventState(SDL_DROPFILE, SDL_ENABLE);
-	
-	mainView   = std::make_unique<Window>(592, 540, 894, 30, "A.G.E");
-	
-#ifdef _DEBUG
-	tileView   = std::make_unique<Window>(Display::DISPLAY_TILE_VIEW_BASE_WIDTH * 2, Display::DISPLAY_TILE_VIEW_BASE_HEIGHT* 2, 638, 30, "Tile View");
-	spriteView = std::make_unique<Window>(Display::DISPLAY_SPRITE_VIEW_BASE_WIDTH * 8,  Display::DISPLAY_SPRITE_VIEW_BASE_HEIGHT * 8, 382, 445, "Sprite View");	
-#endif
+	auto res = IMG_Init(IMG_INIT_PNG);
 
+	mainView   = std::make_unique<Window>(592, 540, 894, 30, "A.G.E");
+	auto* backgroundImg = IMG_LoadTexture(mainView->getRendererHandle(), "C:/Users/Alex/Documents/emu/skin.png");
+	
+	if (debugFlag)
+	{
+		tileView   = std::make_unique<Window>(Display::DISPLAY_TILE_VIEW_BASE_WIDTH * 2, Display::DISPLAY_TILE_VIEW_BASE_HEIGHT* 2, 638, 30, "Tile View");
+		spriteView = std::make_unique<Window>(Display::DISPLAY_SPRITE_VIEW_BASE_WIDTH * 8,  Display::DISPLAY_SPRITE_VIEW_BASE_HEIGHT * 8, 382, 445, "Sprite View");
+	}
+	
 	// Initialize Core Systems
 	Input input;
 	Display display(fillDisplay);
@@ -132,25 +147,21 @@ int main(int argc, char* argv[])
 	// Load Rom
 	loadRom(argv[1], memory);
 	
-	
 	SDL_Event sdlEvent;
 	bool running = true;
-	bool hasRomBeenLoaded = false;
-	bool shouldPrint      = false;
-	bool spacePressed     = false;
-	bool spacePressed0    = false;
-	bool aPressed         = false;
-	bool aPressed0        = false;
-	bool sPressed         = false;
-	bool sPressed0        = false;
-	
+	bool shouldPrint   = false;
+	bool spacePressed  = false;
+	bool spacePressed0 = false;
+	bool aPressed      = false;
+	bool aPressed0     = false;
+	bool sPressed      = false;
+	bool sPressed0     = false;
+
 	word pcHistory[10000];
 	word pcHistoryIndex = 0;
 	
-	SDL_SetWindowTitle(mainView->getWindowHandle(), "Drag n' Drop a ROM file inside this window!");
-
 	int i = 0;
-	while (running)
+	while(running)
 	{
 		while (SDL_PollEvent(&sdlEvent))
 		{
@@ -191,38 +202,22 @@ int main(int argc, char* argv[])
 
 				case SDL_MOUSEBUTTONDOWN:
 				{
-					//if (sdlEvent.window.windowID == spriteView->getID())
-					//{
-						//display.printSpriteData(sdlEvent.button.x, sdlEvent.button.y);
-					//}
-				} break;
-
-				case SDL_DROPFILE:
-				{
-					char* droppedRomPath = sdlEvent.drop.file;					
-					memory.resetMemory();
-					cpu.resetCpu();
-					input.resetInput();
-					display.resetDisplay();
-					memory.setPcRef(cpu.getPC());
-					display.setZ80TimeRegister(cpu.getT());
-					input.setIFRef(memory.getIFPtr());
-					loadRom(droppedRomPath, memory);
-					hasRomBeenLoaded = true;					
-					SDL_free(droppedRomPath);
-
-					SDL_SetWindowTitle(mainView->getWindowHandle(), ("Emulating: " + memory.getCartName()).c_str());
+					if (sdlEvent.window.windowID == spriteView->getID())
+					{
+						display.printSpriteData(sdlEvent.button.x, sdlEvent.button.y);
+					}
 				} break;
 			}
 		}
 
-#if defined (DEBUG) || defined(_DEBUG)
 		if (*cpu.getPC() == CURR_ADDRESS_TO_BREAK)
 		{			
-			shouldPrint = true;
+			//shouldPrint = true;
 		}
-		
-		
+
+		if (spacePressed && !spacePressed0) 
+			shouldPrint = !shouldPrint;
+
 		if (aPressed && !aPressed0)
 		{
 			byte lcdc = memory.readByte(0xFF40);
@@ -240,27 +235,28 @@ int main(int argc, char* argv[])
 			else
 				memory.writeByte(0xFF40, lcdc | 0x20);
 		}
-#endif
-		if (hasRomBeenLoaded)
+
+		cpu.emulateCycle();
+		pcHistory[pcHistoryIndex] = *cpu.getPC();
+		if (pcHistory[pcHistoryIndex] == pcHistory[pcHistoryIndex-1])
 		{
-			cpu.emulateCycle();
-			pcHistory[pcHistoryIndex] = *cpu.getPC();
-			if (pcHistory[pcHistoryIndex] == pcHistory[pcHistoryIndex - 1])
-			{
-				const auto b = false;
-			}
-			pcHistoryIndex = (pcHistoryIndex + 1) % 10000;
-			cpu.handleInterrupts();
-			display.emulateGameboyDisplay();
-		}		
-			
+			const auto b = false;
+		}
+		pcHistoryIndex = (pcHistoryIndex + 1) % 10000;
+		cpu.handleInterrupts();
+		display.emulateGameboyDisplay();
+	
+
 #if defined (_DEBUG) || defined (DEBUG)
 		if (shouldPrint)
 			cpu.printRegisters();
+#endif
 
 		spacePressed0 = spacePressed;
 		aPressed0 = aPressed;
 		sPressed0 = sPressed;
+
+		SDL_RenderCopy(mainView->getRendererHandle(), backgroundImg, nullptr, nullptr);
 
 		if (mainView && mainView->isDestroyed())
 		{
@@ -268,14 +264,10 @@ int main(int argc, char* argv[])
 			running  = false;
 		}
 		if (tileView && tileView->isDestroyed()) 
-		{
 			tileView = nullptr;
-		}
 		if (spriteView && spriteView->isDestroyed()) 
-		{
 			spriteView = nullptr;
-		}
-#endif
 	}
+	
 	return 0;
 }

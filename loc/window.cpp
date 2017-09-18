@@ -18,7 +18,6 @@ Window::Window(
 	_windowHandle   = SDL_CreateWindow(title.c_str(), x, y, width, height, 0);
 	_rendererHandle = SDL_CreateRenderer(_windowHandle, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
 	_id             = SDL_GetWindowID(_windowHandle);
-	SDL_SetRenderDrawColor(_rendererHandle, 0xE0, 0xF8, 0xD0, 0xFF);
 }
 
 
@@ -37,7 +36,7 @@ void Window::handleEvent(const SDL_Event& e)
 			case SDL_WINDOWEVENT_CLOSE:        _destroyed = true; break;
 			case SDL_WINDOWEVENT_SIZE_CHANGED: render(); break;
 			case SDL_WINDOWEVENT_FOCUS_GAINED: _focused = true; break;
-			case SDL_WINDOWEVENT_FOCUS_LOST:   _focused = false; break;			
+			case SDL_WINDOWEVENT_FOCUS_LOST:   _focused = false; break;
 		}
 	}
 }
@@ -48,7 +47,6 @@ word Window::getWidth() const { return _originalWidth; }
 word Window::getHeight() const { return _originalHeight; }
 int Window::getID() const { return _id; }
 SDL_Renderer* Window::getRendererHandle() const { return _rendererHandle; }
-SDL_Window* Window::getWindowHandle() const { return _windowHandle; }
 
 void Window::setTextureFromSurface(SDL_Surface* surface)
 {
@@ -57,7 +55,8 @@ void Window::setTextureFromSurface(SDL_Surface* surface)
 }
 
 void Window::render()
-{	
+{
+	SDL_SetRenderDrawColor(_rendererHandle, 0xE0, 0xF8, 0xD0, 0xFF);
 	SDL_RenderClear(_rendererHandle);
 
 	if (_currTexture)

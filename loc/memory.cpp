@@ -431,23 +431,12 @@ byte Memory::getIF() const { return _if; }
 byte* Memory::getIEPtr() { return &_ie; }
 byte* Memory::getIFPtr() { return &_if; }
 
-const std::string& Memory::getCartName() const
-{
-	return _cartName;
-}
-
 void Memory::resetInterrupt(const byte interrupt) { _if &= ~interrupt; }
 
 void Memory::fillRom(const std::vector<char>& romData)
 {
 	_rom = (byte*)malloc(sizeof(byte) * romData.size());
 	memcpy(_rom, &romData[0], romData.size());
-	_cartName.clear();
-	for (int i = 0x0134; _rom[i] != '\0'; i++)
-	{
-		_cartName += _rom[i];
-	}
-
 	_cartType = _rom[0x0147];
 	initMBC();
 }
@@ -456,7 +445,6 @@ void Memory::setPcRef(const word* pcref) { _pcref = pcref; }
 
 void Memory::resetMemory()
 {
-	free(_rom);
 	_inbios = 1;
 	
 	memcpy(_bios, i_bios, sizeof(_bios));	

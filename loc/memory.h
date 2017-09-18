@@ -1,7 +1,6 @@
 #pragma once
 #include "common.h"
 
-#include <string>
 #include <vector>
 #include <functional>
 
@@ -28,12 +27,13 @@ public:
 	byte getIF() const;
 	byte* getIEPtr();
 	byte* getIFPtr();
-	
-	const std::string& getCartName() const;
 
 	void resetInterrupt(const byte interrupt);
+
 	void fillRom(const std::vector<char>& romData);
+
 	void setPcRef(const word* pcref);
+
 	void resetMemory();
 
 public:
@@ -73,8 +73,6 @@ private:
 	byte _ie;
 	byte _if;
 	byte _cartType;
-
-	std::string _cartName;
 
 	mbc_state_t _mbcState;
 	const word* _pcref;

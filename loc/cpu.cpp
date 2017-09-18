@@ -1246,7 +1246,7 @@ void Cpu::emulateCycle()
 		} break;
 		case 0xF1: // POP AF
 		{
-			_registers.F = (_memory.readByte(_registers.sp++) & 0xF0);
+			_registers.F = _memory.readByte(_registers.sp++);
 			_registers.A = _memory.readByte(_registers.sp++);
 			_registers.M = coreInstructionTicks[_opcode] / 2;
 			_registers.T = coreInstructionTicks[_opcode] * 2;
@@ -3292,56 +3292,70 @@ void Cpu::emulateCycle()
 		} break;
 		case 0x17: // RLA
 		{
-			int carry = isFlagSet(FLAG_C) ? 1 : 0;
+			byte prevCarry = getFlag(FLAG_C);
+			byte prevSeventhBit = _registers.A & 0x80;
 
-			if (_registers.A & 0x80)
+			_registers.A <<= 1;
+
+			resetFlag(FLAG_N);
+			resetFlag(FLAG_H);
+			if (prevSeventhBit)
 				setFlag(FLAG_C);
 			else
 				resetFlag(FLAG_C);
 
-			_registers.A <<= 1;
-			_registers.A += carry;
+			if (prevCarry)
+				_registers.A |= 0x01;
+			else
+				_registers.A &= ~0x01;
 
-			resetFlag(FLAG_N);
-			resetFlag(FLAG_Z);
-			resetFlag(FLAG_H);
+			if (_registers.A == 0)
+				setFlag(FLAG_Z);
+			else
+				resetFlag(FLAG_Z);
 
 			_registers.M = coreInstructionTicks[_opcode] / 2;
 			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x1F: // RRA
 		{
-			int carry = (isFlagSet(FLAG_C) ? 1 : 0) << 7;
-
-			if (_registers.A & 0x01) 
+			byte prevCarry = isFlagSet(FLAG_C) ? 0x80 : 0x00;
+			
+			if ((_registers.A & 0x01) != 0)
 				setFlag(FLAG_C);
 			else
-				resetFlag(FLAG_C);
+				resetFlag(FLAG_C);				
 
 			_registers.A >>= 1;
-			_registers.A += carry;
+			_registers.A |= prevCarry;
 
-			resetFlag(FLAG_N);
-			resetFlag(FLAG_Z);
 			resetFlag(FLAG_H);
+			resetFlag(FLAG_N);
+
+			if (_registers.A == 0x00)
+				setFlag(FLAG_Z);
+			else
+				resetFlag(FLAG_Z);
 
 			_registers.M = coreInstructionTicks[_opcode] / 2;
 			_registers.T = coreInstructionTicks[_opcode] * 2;
 		} break;
 		case 0x07: // RLCA
-		{		
-			byte carry = (_registers.A & 0x80) >> 7;
-			if (carry) 
+		{			
+			if ((_registers.A & 0x80) != 0)
+			{
 				setFlag(FLAG_C);
+				_registers.A <<= 1;
+				_registers.A |= 0x1;
+			}
 			else
+			{
 				resetFlag(FLAG_C);
-
-			_registers.A <<= 1;
-			_registers.A += carry;
-
-			resetFlag(FLAG_N);
-			resetFlag(FLAG_Z);
-			resetFlag(FLAG_H);
+				resetFlag(FLAG_H);
+				resetFlag(FLAG_N);
+				resetFlag(FLAG_Z);
+				_registers.A <<= 1;
+			}
 			
 			_registers.M = coreInstructionTicks[_opcode] / 2;
 			_registers.T = coreInstructionTicks[_opcode] * 2;
@@ -5404,202 +5418,177 @@ void Cpu::emulateCycle()
 				} break;
 				case 0x0F: // RRCA
 				{
-					int carry = _registers.A & 0x01;
+					byte oldBit0 = _registers.A & 0x01;
+
+					resetFlag(FLAG_N);
+					resetFlag(FLAG_H);
+					
+					if (oldBit0)
+						setFlag(FLAG_C);
+					else
+						resetFlag(FLAG_C);
 
 					_registers.A >>= 1;
 
-					if (carry)
-					{
-						setFlag(FLAG_C);
-						_registers.A |= 0x80;
-					}
-					else
-					{
-						resetFlag(FLAG_C);
-					}
-
-					if (_registers.A)
-						resetFlag(FLAG_Z);
-					else
+					if (_registers.A == 0x00)
 						setFlag(FLAG_Z);
-
-					resetFlag(FLAG_N);
-					resetFlag(FLAG_H);				
+					else
+						resetFlag(FLAG_Z);
 
 					_registers.M = cbInstructionTicks[_opcode] / 4;
 					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0x08: // RRC B
 				{
-					int carry = _registers.B & 0x01;
+					byte oldBit0 = _registers.B & 0x01;
+
+					resetFlag(FLAG_N);
+					resetFlag(FLAG_H);
+
+					if (oldBit0)
+						setFlag(FLAG_C);
+					else
+						resetFlag(FLAG_C);
 
 					_registers.B >>= 1;
 
-					if (carry) 
-					{
-						setFlag(FLAG_C);
-						_registers.B |= 0x80;
-					}
-					else
-					{
-						resetFlag(FLAG_C);
-					}
-
-					if (_registers.B)
-						resetFlag(FLAG_Z);
-					else
+					if (_registers.B == 0x00)
 						setFlag(FLAG_Z);
-					
-					resetFlag(FLAG_N);
-					resetFlag(FLAG_H);
+					else
+						resetFlag(FLAG_Z);
 
 					_registers.M = cbInstructionTicks[_opcode] / 4;
 					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0x09: // RRC C
 				{
-					int carry = _registers.C & 0x01;
+					byte oldBit0 = _registers.C & 0x01;
+
+					resetFlag(FLAG_N);
+					resetFlag(FLAG_H);
+
+					if (oldBit0)
+						setFlag(FLAG_C);
+					else
+						resetFlag(FLAG_C);
 
 					_registers.C >>= 1;
 
-					if (carry)
-					{
-						setFlag(FLAG_C);
-						_registers.C |= 0x80;
-					}
-					else
-					{
-						resetFlag(FLAG_C);
-					}
-
-					if (_registers.C)
-						resetFlag(FLAG_Z);
-					else
+					if (_registers.C == 0x00)
 						setFlag(FLAG_Z);
+					else
+						resetFlag(FLAG_Z);
 
-					resetFlag(FLAG_N);
-					resetFlag(FLAG_H);
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0x0A: // RRC D
 				{
-					int carry = _registers.D & 0x01;
+					byte oldBit0 = _registers.D & 0x01;
+
+					resetFlag(FLAG_N);
+					resetFlag(FLAG_H);
+
+					if (oldBit0)
+						setFlag(FLAG_C);
+					else
+						resetFlag(FLAG_C);
 
 					_registers.D >>= 1;
 
-					if (carry)
-					{
-						setFlag(FLAG_C);
-						_registers.D |= 0x80;
-					}
-					else
-					{
-						resetFlag(FLAG_C);
-					}
-
-					if (_registers.D)
-						resetFlag(FLAG_Z);
-					else
+					if (_registers.D == 0x00)
 						setFlag(FLAG_Z);
+					else
+						resetFlag(FLAG_Z);
 
-					resetFlag(FLAG_N);
-					resetFlag(FLAG_H);
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0x0B: // RRC E
 				{
-					int carry = _registers.E & 0x01;
+					byte oldBit0 = _registers.E & 0x01;
+
+					resetFlag(FLAG_N);
+					resetFlag(FLAG_H);
+
+					if (oldBit0)
+						setFlag(FLAG_C);
+					else
+						resetFlag(FLAG_C);
 
 					_registers.E >>= 1;
 
-					if (carry)
-					{
-						setFlag(FLAG_C);
-						_registers.E |= 0x80;
-					}
-					else
-					{
-						resetFlag(FLAG_C);
-					}
-
-					if (_registers.E)
-						resetFlag(FLAG_Z);
-					else
+					if (_registers.E == 0x00)
 						setFlag(FLAG_Z);
+					else
+						resetFlag(FLAG_Z);
 
-					resetFlag(FLAG_N);
-					resetFlag(FLAG_H);
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0x0C: // RRC H
 				{
-					int carry = _registers.H & 0x01;
+					byte oldBit0 = _registers.H & 0x01;
+
+					resetFlag(FLAG_N);
+					resetFlag(FLAG_H);
+
+					if (oldBit0)
+						setFlag(FLAG_C);
+					else
+						resetFlag(FLAG_C);
 
 					_registers.H >>= 1;
 
-					if (carry)
-					{
-						setFlag(FLAG_C);
-						_registers.H |= 0x80;
-					}
-					else
-					{
-						resetFlag(FLAG_C);
-					}
-
-					if (_registers.H)
-						resetFlag(FLAG_Z);
-					else
+					if (_registers.H == 0x00)
 						setFlag(FLAG_Z);
+					else
+						resetFlag(FLAG_Z);
 
-					resetFlag(FLAG_N);
-					resetFlag(FLAG_H);
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0x0D: // RRC L
 				{
-					int carry = _registers.L & 0x01;
-
-					_registers.L >>= 1;
-
-					if (carry)
-					{
-						setFlag(FLAG_C);
-						_registers.L |= 0x80;
-					}
-					else
-					{
-						resetFlag(FLAG_C);
-					}
-
-					if (_registers.L)
-						resetFlag(FLAG_Z);
-					else
-						setFlag(FLAG_Z);
+					byte oldBit0 = _registers.L & 0x01;
 
 					resetFlag(FLAG_N);
 					resetFlag(FLAG_H);
+
+					if (oldBit0)
+						setFlag(FLAG_C);
+					else
+						resetFlag(FLAG_C);
+
+					_registers.L >>= 1;
+
+					if (_registers.L == 0x00)
+						setFlag(FLAG_Z);
+					else
+						resetFlag(FLAG_Z);
+
+					_registers.M = cbInstructionTicks[_opcode] / 4;
+					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0x0E: // RRC (HL)
 				{
 					byte val = _memory.readByte((_registers.H << 8) + _registers.L);
-					
-					int carry = val & 0x01;
-					val >>= 1;
-
-					if (carry)
-					{
-						setFlag(FLAG_C);
-						val |= 0x80;
-					}
-					else
-					{
-						resetFlag(FLAG_C);
-					}
-
-					if (val)					
-						resetFlag(FLAG_Z);
-					else
-						setFlag(FLAG_Z);
+					byte oldBit0 = val & 0x01;
 
 					resetFlag(FLAG_N);
 					resetFlag(FLAG_H);
+
+					if (oldBit0)
+						setFlag(FLAG_C);
+					else
+						resetFlag(FLAG_C);
+
+					val >>= 1;
+
+					if (val == 0x00)
+						setFlag(FLAG_Z);
+					else
+						resetFlag(FLAG_Z);
 
 					_memory.writeByte((_registers.H << 8) + _registers.L, val);
 
@@ -5608,161 +5597,154 @@ void Cpu::emulateCycle()
 				} break;
 				case 0x07: // RLC A
 				{
-					int carry = (_registers.A & 0x80) >> 7;
+					byte oldBit7 = _registers.A & 0x80;
 
-					if (_registers.A & 0x80) 
-						setFlag(FLAG_C);
-					else
-						resetFlag(FLAG_C);					
-
-					_registers.A <<= 1;
-					_registers.A += carry;
-
-					if (_registers.A)
-						resetFlag(FLAG_Z);
-					else
-						setFlag(FLAG_Z);
-					
 					resetFlag(FLAG_N);
 					resetFlag(FLAG_H);
+
+					if (oldBit7)
+						setFlag(FLAG_C);
+					else
+						resetFlag(FLAG_C);
+
+					_registers.A <<= 1;
+
+					if (_registers.A == 0x00)
+						setFlag(FLAG_Z);
+					else
+						resetFlag(FLAG_Z);
 
 					_registers.M = cbInstructionTicks[_opcode] / 4;
 					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0x00: // RLC B
 				{
-					int carry = (_registers.B & 0x80) >> 7;
-
-					if (_registers.B & 0x80) 
-						setFlag(FLAG_C);
-					else 
-						resetFlag(FLAG_C);
-
-					_registers.B <<= 1;
-					_registers.B += carry;
-
-					if (_registers.B) 
-						resetFlag(FLAG_Z);
-					else 
-						setFlag(FLAG_Z);
+					byte oldBit7 = _registers.B & 0x80;
 
 					resetFlag(FLAG_N);
 					resetFlag(FLAG_H);
+
+					if (oldBit7)
+						setFlag(FLAG_C);
+					else
+						resetFlag(FLAG_C);
+
+					_registers.B <<= 1;
+
+					if (_registers.B == 0x00)
+						setFlag(FLAG_Z);
+					else
+						resetFlag(FLAG_Z);
 
 					_registers.M = cbInstructionTicks[_opcode] / 4;
 					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0x01: // RLC C
 				{
-					int carry = (_registers.C & 0x80) >> 7;
+					byte oldBit7 = _registers.C & 0x80;
 
-					if (_registers.C & 0x80)
+					resetFlag(FLAG_N);
+					resetFlag(FLAG_H);
+
+					if (oldBit7)
 						setFlag(FLAG_C);
 					else
 						resetFlag(FLAG_C);
 
 					_registers.C <<= 1;
-					_registers.C += carry;
 
-					if (_registers.C)
-						resetFlag(FLAG_Z);
-					else
+					if (_registers.C == 0x00)
 						setFlag(FLAG_Z);
-
-					resetFlag(FLAG_N);
-					resetFlag(FLAG_H);
+					else
+						resetFlag(FLAG_Z);
 
 					_registers.M = cbInstructionTicks[_opcode] / 4;
 					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0x02: // RLC D
 				{
-					int carry = (_registers.D & 0x80) >> 7;
+					byte oldBit7 = _registers.D & 0x80;
 
-					if (_registers.D & 0x80)
+					resetFlag(FLAG_N);
+					resetFlag(FLAG_H);
+
+					if (oldBit7)
 						setFlag(FLAG_C);
 					else
 						resetFlag(FLAG_C);
 
 					_registers.D <<= 1;
-					_registers.D += carry;
 
-					if (_registers.D)
-						resetFlag(FLAG_Z);
-					else
+					if (_registers.D == 0x00)
 						setFlag(FLAG_Z);
-
-					resetFlag(FLAG_N);
-					resetFlag(FLAG_H);
+					else
+						resetFlag(FLAG_Z);
 
 					_registers.M = cbInstructionTicks[_opcode] / 4;
 					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0x03: // RLC E
 				{
-					int carry = (_registers.E & 0x80) >> 7;
+					byte oldBit7 = _registers.E & 0x80;
 
-					if (_registers.E & 0x80)
+					resetFlag(FLAG_N);
+					resetFlag(FLAG_H);
+
+					if (oldBit7)
 						setFlag(FLAG_C);
 					else
 						resetFlag(FLAG_C);
 
 					_registers.E <<= 1;
-					_registers.E += carry;
 
-					if (_registers.E)
-						resetFlag(FLAG_Z);
-					else
+					if (_registers.E == 0x00)
 						setFlag(FLAG_Z);
-
-					resetFlag(FLAG_N);
-					resetFlag(FLAG_H);
+					else
+						resetFlag(FLAG_Z);
 
 					_registers.M = cbInstructionTicks[_opcode] / 4;
 					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0x04: // RLC H
 				{
-					int carry = (_registers.H & 0x80) >> 7;
+					byte oldBit7 = _registers.H & 0x80;
 
-					if (_registers.H & 0x80)
+					resetFlag(FLAG_N);
+					resetFlag(FLAG_H);
+
+					if (oldBit7)
 						setFlag(FLAG_C);
 					else
 						resetFlag(FLAG_C);
 
 					_registers.H <<= 1;
-					_registers.H += carry;
 
-					if (_registers.H)
-						resetFlag(FLAG_Z);
-					else
+					if (_registers.H == 0x00)
 						setFlag(FLAG_Z);
-
-					resetFlag(FLAG_N);
-					resetFlag(FLAG_H);
+					else
+						resetFlag(FLAG_Z);
 
 					_registers.M = cbInstructionTicks[_opcode] / 4;
 					_registers.T = cbInstructionTicks[_opcode];
 				} break;
 				case 0x05: // RLC L
 				{
-					int carry = (_registers.L & 0x80) >> 7;
+					byte oldBit7 = _registers.L & 0x80;
 
-					if (_registers.L & 0x80)
+					resetFlag(FLAG_N);
+					resetFlag(FLAG_H);
+
+					if (oldBit7)
 						setFlag(FLAG_C);
 					else
 						resetFlag(FLAG_C);
 
 					_registers.L <<= 1;
-					_registers.L += carry;
 
-					if (_registers.L)
-						resetFlag(FLAG_Z);
-					else
+					if (_registers.L == 0x00)
 						setFlag(FLAG_Z);
-
-					resetFlag(FLAG_N);
-					resetFlag(FLAG_H);
+					else
+						resetFlag(FLAG_Z);
 
 					_registers.M = cbInstructionTicks[_opcode] / 4;
 					_registers.T = cbInstructionTicks[_opcode];
@@ -5770,27 +5752,22 @@ void Cpu::emulateCycle()
 				case 0x06: // RLC (HL)
 				{
 					byte val = _memory.readByte((_registers.H << 8) + _registers.L);
+					byte oldBit7 = val & 0x80;
 
-					int carry = (val & 0x80) >> 7;
-					
-					if (val & 0x80)
+					resetFlag(FLAG_N);
+					resetFlag(FLAG_H);
+
+					if (oldBit7)
 						setFlag(FLAG_C);
 					else
 						resetFlag(FLAG_C);
 
 					val <<= 1;
-					val += carry;
 
-					resetFlag(FLAG_N);
-					resetFlag(FLAG_H);
-
-					if (val)
-						resetFlag(FLAG_Z);
-					else
+					if (val == 0x00)
 						setFlag(FLAG_Z);
-
-					resetFlag(FLAG_N);
-					resetFlag(FLAG_H);					
+					else
+						resetFlag(FLAG_Z);
 					
 					_memory.writeByte((_registers.H << 8) + _registers.L, val);
 
@@ -7091,6 +7068,8 @@ void Cpu::resetCpu()
 
 void Cpu::printRegisters()
 {
+	//if (_errorState == ES_UNIMPLEMENTED_INSTRUCTION) return;
+	
 	auto opcodeDisassembly = _isBitOpcode ? s_bitOpcodeDisassembly.at(_opcode) : s_instrDisassembly.at(_opcode);
 	
 	std::cout << "---------- Registers for: " << opcodeDisassembly << " [0x" << std::hex << static_cast<int>(_opcode) << "] ----------" << std::endl;	
