@@ -130,7 +130,7 @@ int main(int argc, char* argv[])
 	input.setIFRef(memory.getIFPtr());
 
 	// Load Rom
-	loadRom(argv[1], memory);
+	//loadRom(argv[1], memory);
 	
 	
 	SDL_Event sdlEvent;
